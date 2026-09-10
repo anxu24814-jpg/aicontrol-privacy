@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 控制台 · 自由接入的 AI 对话应用</title>
+<meta name="description" content="AI 控制台是一款鸿蒙 AI 对话客户端，自带访问密钥即可连接兼容 OpenAI 协议的大模型服务，数据仅保存在设备本地。">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<style>
+  /* ============================================================
+     AI 控制台官网 · 深色单主题
+     视觉基线（2026-09-09 逐项取自 moonshot.cn 渲染态与静态 CSS）：
+     导航 72px / blur(16.75px) / rgba(0,0,0,.4)；版心 1440 内边距 80；
+     节标题 32px w500 行高 40；正文 18px/1.52 #737373；
+     卡片 #121212 + 1px rgba(255,255,255,.12) + 圆角 16 + hover 上浮 4px；
+     入场 opacity/translateY(30px) 0.9s cubic-bezier(.16,1,.3,1) + 逐项 0.12s 延迟。
+     配色严格黑白灰（与参考站一致），彩色只出现在插画与图标。
+     首屏背景自 2026-09-10 起为自绘「刻度环 · 读数」（纯 CSS，零 JS 零画布），替换原「滚动品牌字 +
+     中央折射透镜球」——那两笔与 Moonshot 首屏签名过近（决明拍板换向）；其余版式仍沿用上述基线。
+     ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; }
+  :root {
+    --ink: #fff;
+    --dim: rgba(255,255,255,.56);
+    --dim-2: rgba(255,255,255,.42);
+    --line: rgba(255,255,255,.12);
+    --panel: #121212;
+    --wrap: 1440px;
+    --pad: 80px;
+    --nav-h: 72px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    background: #000;
+    color: var(--ink);
+    font-family: "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: .00938em;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  img, svg, canvas { display: block; max-width: 100%; }
+  button, input, textarea { font: inherit; color: inherit; }
+  a { color: inherit; }
+  ::-webkit-scrollbar { width: 4px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: #45454e; border-radius: 2px; }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad); }
+  section[id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
+
+  /* ---------- 入场动效（与参考站同曲线；JS 缺席或减动效时直显） ---------- */
+  html.js .reveal {
+    opacity: 0; transform: translateY(30px);
+    transition: opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1);
+  }
+  html.js .revealRotate {
+    opacity: 0; transform: translateY(24px) rotate(1.5deg); transform-origin: 0 100%;
+    transition: opacity 1.05s cubic-bezier(.16,1,.3,1), transform 1.05s cubic-bezier(.16,1,.3,1);
+  }
+  html.js .reveal.visible, html.js .revealRotate.visible { opacity: 1; transform: none; }
+  html.js .stagger.visible > .reveal { opacity: 1; transform: none; }
+  html.js .stagger.visible > .reveal:nth-child(1) { transition-delay: 0s; }
+  html.js .stagger.visible > .reveal:nth-child(2) { transition-delay: .12s; }
+  html.js .stagger.visible > .reveal:nth-child(3) { transition-delay: .24s; }
+  html.js .stagger.visible > .reveal:nth-child(4) { transition-delay: .36s; }
+  html.js .stagger.visible > .reveal:nth-child(5) { transition-delay: .48s; }
+  html.js .stagger.visible > .reveal:nth-child(6) { transition-delay: .6s; }
+
+  /* ---------- 自定义光标（细指针设备；触屏与减动效关闭） ---------- */
+  .cursor, .cursor-dot {
+    position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+    /* 初始 opacity 0：指针尚未移动前不该在左上角露出光圈与圆点（首次 mousemove 由脚本点亮） */
+    opacity: 0; will-change: translate, opacity; border-radius: 50%;
+  }
+  .cursor {
+    width: 36px; height: 36px; margin: -18px 0 0 -18px;
+    border: 1px solid rgba(255,255,255,.55);
+    /* 玻璃透镜 = 真折射：backdrop-filter 引用页面内联的 SVG 滤镜（径向位移图 → 圆内内容整体
+       放大、越靠边收得越多，按半径重采样）；不支持 url() 滤镜的浏览器退回上一行的柔和毛玻璃。
+       滤镜区仅 72×72 px、单原语，无逐帧 JS、无重排 */
+    backdrop-filter: blur(2px) saturate(1.15) brightness(1.05);
+    backdrop-filter: blur(.4px) url(#cursorLens);
+    -webkit-backdrop-filter: blur(2px) saturate(1.15) brightness(1.05);
+    -webkit-backdrop-filter: blur(.4px) url(#cursorLens);
+    /* 高透明：只留极淡的穹面反光，不做实心蒙层 */
+    background-image:
+      radial-gradient(circle at 34% 26%, rgba(255,255,255,.16), rgba(255,255,255,.02) 48%, rgba(255,255,255,0) 72%);
+    transition: scale .35s cubic-bezier(.16,1,.3,1), border-color .35s ease,
+                background-color .35s ease, opacity .3s ease;
+  }
+  .cursor.is-hover { scale: calc(56 / 36); border-color: rgba(255,255,255,.9); background-color: rgba(255,255,255,.08); }
+  .cursor-dot { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; background: #fff; }
+  html:not(.js) .cursor, html:not(.js) .cursor-dot { display: none; }
+  @media (hover: none), (pointer: coarse) { .cursor, .cursor-dot { display: none; } }
+
+  /* ---------- 导航（毛玻璃吸顶，菜单居中） ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(0,0,0,.4);
+    backdrop-filter: blur(16.75px);
+    -webkit-backdrop-filter: blur(16.75px);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .nav { background: rgba(0,0,0,.86); }
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: var(--nav-h); max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad);
+    position: relative;
+  }
+  .brand { flex-shrink: 0; display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand img { width: 32px; height: 32px; border-radius: 9px; }
+  .brand span { font-size: 19px; font-weight: 600; letter-spacing: .2px; }
+  .menu {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 24px;
+  }
+  .menu a, .menu button {
+    padding: 4px 8px; border: 0; background: none; border-radius: 8px;
+    font-size: 16px; line-height: 24px; font-weight: 380; color: var(--dim);
+    text-decoration: none; white-space: nowrap; cursor: pointer; transition: color .2s;
+  }
+  .menu a:hover, .menu button:hover, .menu .on { color: rgba(255,255,255,.84); }
+  .nav-right { flex-shrink: 0; display: flex; align-items: center; gap: 12px; }
+  .nav-right .btn { padding: 9px 18px; font-size: 15px; }
+  .burger {
+    display: none; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border: 0; background: none; cursor: pointer;
+  }
+  .burger svg { width: 24px; height: 24px; stroke: #fff; stroke-width: 2; }
+  .drawer {
+    display: none; flex-direction: column;
+    position: absolute; top: var(--nav-h); left: 0; right: 0; z-index: 1;
+    height: calc(100vh - var(--nav-h)); height: calc(100dvh - var(--nav-h));
+    overflow-y: auto; padding: 8px 48px 24px; background: #121212;
+  }
+  .drawer.open { display: flex; }
+  .drawer a {
+    display: block; padding: 12px 0; font-size: 16px; line-height: 24px;
+    color: rgba(255,255,255,.6); text-decoration: none; text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .drawer a:hover { color: #fff; }
+
+  /* ---------- 胶囊按钮（hover 时箭头从 0 宽度展开，同参考站） ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 12px 20px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.42); background: transparent;
+    color: var(--dim); font-size: 16px; font-weight: 450; line-height: 24px;
+    text-decoration: none; white-space: nowrap; overflow: hidden; cursor: pointer;
+    transition: border-color .2s, background .2s, color .2s, padding .2s;
+  }
+  .btn .arrow {
+    display: inline-flex; align-items: center; width: 0; margin-left: 0;
+    opacity: 0; overflow: hidden; flex-shrink: 0;
+    transition: width .2s ease, opacity .2s ease, margin-left .2s ease;
+  }
+  .btn .arrow svg { width: 17px; height: 11px; flex-shrink: 0; }
+  .btn:hover, .btn:focus-visible {
+    border-color: #fff; background: rgba(255,255,255,.05); color: #fff;
+    padding: 12px 12px 12px 20px;
+  }
+  .btn:hover .arrow, .btn:focus-visible .arrow { width: 17px; margin-left: 6px; opacity: 1; }
+  .btn.solid { background: #fff; border-color: #fff; color: #000; font-weight: 500; }
+  .btn.solid:hover, .btn.solid:focus-visible { background: rgba(255,255,255,.88); color: #000; }
+
+  /* ---------- 首屏 ---------- */
+  .hero {
+    position: relative; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    width: 100%; height: 876px; padding: 80px 0;
+  }
+  .hero-bg { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
+  /* 首屏背景「刻度环 · 读数」：三级刻度环绕住内容 + 一枚缓慢扫过的指针。
+     纯 CSS——repeating-conic-gradient 出刻度、radial-gradient 掩出环带；零 JS、零画布、无逐帧计算 */
+  .dial {
+    /* 环心 = 标签与输入框之间（三个断点各自实测：首屏内容列被 flex 居中，位置随断点变，
+       不能写死一个值）；--dial-k = 窄屏整体缩放系数 */
+    --dial-y: 510px; --dial-k: 1;
+    position: absolute; left: 50%; top: var(--dial-y); width: 680px; height: 680px;
+    margin: -340px 0 0 -340px; pointer-events: none;
+    transform: scale(var(--dial-k));
+  }
+  .dial i { position: absolute; inset: 0; display: block; border-radius: 50%; }
+  /* 刻度分三级（细 3° / 中 15° / 长 45°）——分级而非十二等分，避开钟面观感 */
+  .dial .ticks {
+    background: repeating-conic-gradient(rgba(255,255,255,.15) 0 .38deg, transparent .38deg 3deg);
+    -webkit-mask: radial-gradient(circle, transparent 329px, #000 331px 340px, transparent 341px);
+    mask: radial-gradient(circle, transparent 329px, #000 331px 340px, transparent 341px);
+  }
+  .dial .ticks-mid {
+    background: repeating-conic-gradient(rgba(255,255,255,.24) 0 .6deg, transparent .6deg 15deg);
+    -webkit-mask: radial-gradient(circle, transparent 317px, #000 319px 340px, transparent 341px);
+    mask: radial-gradient(circle, transparent 317px, #000 319px 340px, transparent 341px);
+  }
+  .dial .ticks-major {
+    background: repeating-conic-gradient(rgba(255,255,255,.36) 0 .9deg, transparent .9deg 45deg);
+    -webkit-mask: radial-gradient(circle, transparent 299px, #000 301px 340px, transparent 341px);
+    mask: radial-gradient(circle, transparent 299px, #000 301px 340px, transparent 341px);
+  }
+  .dial .ring { border: 1px solid rgba(255,255,255,.10); }
+  .dial .ring-far { inset: -36px; border: 1px solid rgba(255,255,255,.05); }
+  /* 反向缓转的一段弧：仪器外壳的层次 */
+  .dial .arc { border: 1px solid transparent; border-top-color: rgba(255,255,255,.16); animation: dialSpin 96s linear infinite reverse; }
+  /* 读数指针：自圆心指向刻度，44s 一圈 */
+  .dial .needle {
+    inset: auto; left: 50%; bottom: 50%; width: 1px; height: 340px; margin-left: -.5px;
+    background: linear-gradient(to top, rgba(255,255,255,0), rgba(255,255,255,.52));
+    transform-origin: 50% 100%; animation: dialSweep 44s linear infinite;
+  }
+  .dial .needle::after {
+    content: ""; position: absolute; top: -2px; left: -1.5px; width: 4px; height: 4px; border-radius: 50%;
+    background: rgba(255,255,255,.88); box-shadow: 0 0 10px rgba(255,255,255,.7);
+  }
+  @keyframes dialSweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes dialSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .hero-content {
+    position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center;
+    gap: 52px; width: calc(100% - 40px); max-width: 739.5px; margin: 0 auto; padding-top: 344px;
+  }
+  .tagline {
+    font-size: 24px; font-weight: 305; line-height: normal; letter-spacing: .72px;
+    color: #fff; opacity: .6; text-align: center;
+    /* 首屏字效是亮底，窄屏下标签会压在字上——加一层暗描边保证可读 */
+    text-shadow: 0 2px 24px rgba(0,0,0,.9), 0 0 8px rgba(0,0,0,.7);
+  }
+  .ask { width: 100%; }
+  .ask-box {
+    position: relative; display: flex; flex-direction: column; gap: 12px;
+    width: 100%; padding: 18px 12px 12px; border-radius: 24px; overflow: hidden;
+    background: rgba(51,51,51,.3); border: 1px solid transparent;
+    backdrop-filter: blur(23px) brightness(.6);
+    -webkit-backdrop-filter: blur(23px) brightness(.6);
+    transition: background .2s, border-color .2s, box-shadow .2s;
+  }
+  .ask-box:hover { background: rgba(51,51,51,.35); }
+  .ask-box:focus-within { background: rgba(51,51,51,.35); border-color: rgba(255,255,255,.12); box-shadow: 0 0 40px rgba(255,255,255,.25); }
+  /* 内侧描边：上缘亮、下缘暗，模拟玻璃厚度（同参考站 inset 叠加） */
+  .ask-box::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3;
+    box-shadow: inset 1px 1px 0 -.5px #333, inset -1px -1px 0 -.5px #262626,
+                inset 1px 1px .5px -1px rgba(255,255,255,.15), inset -1px -1px .5px -1px rgba(255,255,255,.15),
+                inset 0 0 3px rgba(255,255,255,.08), inset 0 0 11px rgba(255,255,255,.04);
+  }
+  .ask-field { position: relative; z-index: 2; height: 60px; padding: 0 12px; }
+  .ask-field textarea {
+    width: 100%; height: 100%; background: transparent; border: 0; outline: none; resize: none;
+    color: rgba(255,255,255,.84); font-size: 18px; line-height: 36px;
+  }
+  .ask-field textarea::placeholder { color: rgba(255,255,255,.26); transition: color .5s cubic-bezier(.22,1,.36,1); }
+  .ask-box:hover .ask-field textarea::placeholder,
+  .ask-box:focus-within .ask-field textarea::placeholder { color: rgba(255,255,255,.84); }
+  .ask-send { position: relative; z-index: 2; display: flex; justify-content: flex-end; }
+  .ask-send button {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; padding: 0; border: 0; border-radius: 23.5px;
+    background: rgba(255,255,255,.18); cursor: pointer; flex-shrink: 0; transition: background .2s;
+  }
+  .ask-box:hover .ask-send button, .ask-box:focus-within .ask-send button { background: rgba(255,255,255,.25); }
+  .ask-send svg { width: 13px; height: 16px; opacity: .56; transition: opacity .2s; }
+  .ask-box:hover .ask-send svg, .ask-box:focus-within .ask-send svg { opacity: 1; }
+  .hero-cta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+  /* ---------- 通用节头 ---------- */
+  .sec { padding: 80px 0; }
+  .sec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .sec-head .titles { display: flex; flex-direction: column; gap: 16px; }
+  .sec-title { font-size: 32px; font-weight: 500; line-height: 40px; }
+  .sec-desc { font-size: 18px; line-height: 1.52; color: #737373; max-width: 1000px; }
+  .sec-head .btn { flex-shrink: 0; }
+  .sec-head.center { flex-direction: column; align-items: center; text-align: center; }
+  .sec-head.center .sec-desc { color: rgba(255,255,255,.42); letter-spacing: -.88px; }
+
+  /* ---------- 核心能力卡（媒体区悬停由灰转彩 + 微放大） ---------- */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px; }
+  .card {
+    position: relative; display: block; overflow: clip;
+    aspect-ratio: 154 / 117; border-radius: 16px; text-decoration: none;
+    background: var(--panel); border: 1px solid var(--line);
+    transition: transform .2s;
+  }
+  .card:hover { transform: translateY(-4px); }
+  .card-art { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .card-art svg { width: 100%; height: 100%; filter: grayscale(1) brightness(1.55); transition: transform .3s ease, filter .4s ease; }
+  .card:hover .card-art svg { transform: scale(1.05); filter: grayscale(0) brightness(1.25); }
+  .card-shade { position: absolute; inset: 0; background: rgba(0,0,0,.28); transition: background .4s ease; pointer-events: none; }
+  .card:hover .card-shade { background: transparent; }
+  .card-fade {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 37%; pointer-events: none;
+    background: linear-gradient(to top, rgba(0,0,0,.8) 62.5%, transparent);
+  }
+  .card-info { position: absolute; left: 19px; right: 19px; bottom: 22px; display: flex; flex-direction: column; gap: 4px; }
+  .card-tag { font-size: 14px; line-height: 20px; color: var(--dim); }
+  .card-name { font-size: 16px; font-weight: 500; line-height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- 场景轮播（背景用极光层替代视频） ---------- */
+  .showcase { position: relative; overflow: hidden; background: #000; }
+  .showcase-bg { position: absolute; inset: 0; pointer-events: none; }
+  .showcase-bg i {
+    position: absolute; display: block; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.10), transparent 62%);
+    animation: drift 26s ease-in-out infinite;
+  }
+  .showcase-bg i:nth-child(1) { width: 720px; height: 720px; left: 4%; top: -14%; }
+  .showcase-bg i:nth-child(2) { width: 560px; height: 560px; right: 6%; bottom: -18%; animation-duration: 34s; animation-direction: reverse; }
+  .showcase-bg i:nth-child(3) { width: 420px; height: 420px; left: 42%; top: 26%; background: radial-gradient(circle, rgba(255,255,255,.06), transparent 64%); animation-duration: 42s; }
+  @keyframes drift {
+    0%, 100% { transform: translate3d(-3%, -2%, 0) scale(1); }
+    50% { transform: translate3d(3%, 3%, 0) scale(1.12); }
+  }
+  .showcase-inner { position: relative; z-index: 1; display: flex; flex-direction: column; padding: 80px var(--pad); }
+  .showcase-body { display: flex; gap: 32px; align-items: flex-start; margin: auto 0; padding-top: 72px; }
+  .bars { display: flex; flex-direction: column; gap: 8px; width: 8px; padding-top: 12px; flex-shrink: 0; }
+  .bar { width: 100%; height: 24px; border-radius: 4px; background: #323232; overflow: hidden; cursor: pointer; transition: height .3s ease; }
+  .bar.on { height: 50px; }
+  .bar i { display: block; width: 100%; height: 0; background: #6d6d6d; border-radius: 4px; }
+  .bar.on i { animation: fill 6s linear forwards; }
+  @keyframes fill { from { height: 0; } to { height: 100%; } }
+  .showcase-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 80px; width: 454px; }
+  .showcase-copy .titles { display: flex; flex-direction: column; gap: 24px; max-width: 400px; }
+  .showcase-title { font-size: 56px; font-weight: 500; line-height: 1.2; }
+  .showcase-slogan { font-size: 18px; line-height: 1.6; color: #737373; }
+  .showcase-copy.swap .showcase-title, .showcase-copy.swap .showcase-slogan { animation: riseIn .5s cubic-bezier(.16,1,.3,1); }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- 细节卡（图文卡：插画 + 标题 + 描述） ---------- */
+  .dcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 96px; }
+  .dcard {
+    display: flex; flex-direction: column; aspect-ratio: 7 / 6; border-radius: 16px; overflow: hidden;
+    background: linear-gradient(0deg, rgba(0,0,0,.2), rgba(0,0,0,.2)), var(--panel);
+    border: .5px solid var(--line); transition: transform .2s;
+  }
+  .dcard:hover { transform: translateY(-4px); }
+  .dcard-art { flex: 1; min-height: 0; overflow: hidden; background: #141414; }
+  .dcard-art svg { width: 100%; height: 100%; }
+  .dcard-info { flex-shrink: 0; padding: 24px 20px; display: flex; flex-direction: column; gap: 4px; }
+  .dcard-info h3 { font-size: 16px; font-weight: 500; line-height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dcard-info p { font-size: 14px; line-height: 20px; color: rgba(255,255,255,.42); }
+
+  /* ---------- 常见问题 ---------- */
+  .faq { display: flex; flex-direction: column; gap: 12px; margin-top: 40px; }
+  .faq details { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .faq summary {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 20px 24px; font-size: 16px; font-weight: 500; cursor: pointer; list-style: none;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after {
+    content: ""; flex: none; width: 8px; height: 8px; margin-right: 4px;
+    border-right: 2px solid var(--dim); border-bottom: 2px solid var(--dim);
+    transform: rotate(45deg); transition: transform .18s ease;
+  }
+  .faq details[open] summary::after { transform: rotate(-135deg); }
+  .faq p { padding: 0 24px 22px; font-size: 16px; line-height: 1.72; color: #a3a3a3; }
+  .faq a { color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.3); }
+  .faq a:hover { border-bottom-color: #fff; }
+
+  /* ---------- 获取（线框背景 + 图标 + 平台键） ---------- */
+  .get { position: relative; padding: 200px 0; background: #000; }
+  .get-wire { position: absolute; top: 127px; left: 0; right: 0; display: flex; justify-content: center; overflow: hidden; }
+  .get-wire svg { width: 100%; max-width: 987px; aspect-ratio: 987 / 663; }
+  .get-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 36px; }
+  .get-inner > img { width: 108px; height: 108px; border-radius: 24px; }
+  .get-title { font-size: 40px; font-weight: 500; line-height: 56px; text-align: center; }
+  .get-actions { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .get-actions .btn { padding: 12px 20px; font-weight: 500; }
+  .get-actions .btn:hover, .get-actions .btn:focus-visible { padding: 12px 12px 12px 20px; background: rgba(255,255,255,.05); }
+  .get-actions .btn svg { width: 18px; height: 18px; }
+  /* 「立即体验」长条键：hover 标签上滑切换 + 圆形键底变白、箭头旋转（同参考站） */
+  .try {
+    display: flex; align-items: center; justify-content: space-between; width: 395px; max-width: 100%;
+    padding: 16px 16px 16px 24px; border-radius: 100px; overflow: hidden;
+    background: rgba(51,51,51,.5); border: .5px solid var(--line); text-decoration: none;
+    backdrop-filter: blur(23px); -webkit-backdrop-filter: blur(23px);
+    transition: background .2s ease-out, border-color .2s ease-out, box-shadow .2s ease-out, transform .1s ease-out;
+  }
+  .try:hover { background: rgba(61,61,61,.6); border-color: rgba(255,255,255,.24); box-shadow: 0 0 8px rgba(255,255,255,.06), 0 0 16px rgba(255,255,255,.04); }
+  .try:active { transform: scale(.98); }
+  .try-text { position: relative; flex: 1; height: 36px; overflow: hidden; }
+  .try-label, .try-label-hover {
+    position: absolute; left: 0; top: 0; font-size: 18px; line-height: 36px; white-space: nowrap;
+    transition: opacity .15s ease-out, transform .15s ease-out;
+  }
+  .try-label { color: rgba(255,255,255,.56); }
+  .try-label-hover { color: rgba(255,255,255,.9); font-weight: 500; opacity: 0; transform: translateY(4px); }
+  .try:hover .try-label { opacity: 0; transform: translateY(-4px); }
+  .try:hover .try-label-hover { opacity: 1; transform: translateY(0); }
+  .try-icon {
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 48px; height: 48px; border-radius: 150px; background: rgba(255,255,255,.18);
+    transition: all .25s cubic-bezier(.4,0,.2,1);
+  }
+  .try-icon svg { width: 13px; height: 16px; opacity: .56; transition: transform .25s cubic-bezier(.34,1.56,.64,1), opacity .25s cubic-bezier(.4,0,.2,1); }
+  .try:hover .try-icon { background: rgba(255,255,255,.9); }
+  .try:hover .try-icon svg { opacity: 1; transform: rotate(90deg) scale(1.1); filter: brightness(0); }
+
+  /* ---------- 隐私主张 ---------- */
+  .pledge { text-align: center; padding: 40px 0 100px; }
+  .pledge h2 { font-size: 32px; font-weight: 500; line-height: 40px; }
+  .pledge p { margin: 16px auto 28px; max-width: 640px; font-size: 18px; line-height: 1.52; color: #737373; }
+
+  /* ---------- 页脚 ---------- */
+  footer { position: relative; overflow: hidden; background: #000; padding: 48px 0; }
+  .foot-glow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .foot-inner { position: relative; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad); }
+  .foot-top { display: flex; gap: 96px; padding: 56px 0 96px; }
+  .foot-brand { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 32px; }
+  .foot-brand .brand img { width: 40px; height: 40px; border-radius: 11px; }
+  .foot-brand .brand span { font-size: 22px; }
+  .foot-copy { font-size: 14px; line-height: 20px; color: var(--dim); display: flex; flex-direction: column; gap: 4px; }
+  .foot-cols { display: flex; gap: 64px; }
+  .foot-col { display: flex; flex-direction: column; gap: 24px; min-width: 130px; }
+  .foot-col h4 { font-size: 14px; font-weight: 500; line-height: 20px; color: #fff; padding-bottom: 16px; }
+  .foot-col a { font-size: 14px; line-height: 20px; color: rgba(255,255,255,.84); text-decoration: none; transition: color .2s; }
+  .foot-col a:hover { color: #fff; }
+  .foot-bottom {
+    display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+    padding-top: 32px; border-top: 1px solid rgba(255,255,255,.06);
+    font-size: 12px; line-height: 20px; color: rgba(255,255,255,.35); text-align: center;
+  }
+  .foot-bottom a { color: inherit; text-decoration: none; }
+  .foot-bottom a:hover { color: rgba(255,255,255,.6); }
+  .foot-bottom .sep { margin: 0 8px; }
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width: 1199px) {
+    .nav-inner { padding-left: 30px; padding-right: 20px; }
+    .menu { left: calc(50% + 47px); }
+  }
+  @media (max-width: 999px) {
+    :root { --pad: 48px; }
+    .menu, .nav-right .btn { display: none; }
+    .burger { display: flex; }
+    .hero-content { padding-top: 260px; }
+    .dial { --dial-y: 468px; }
+    .cards, .dcards { grid-template-columns: repeat(2, 1fr); }
+    .showcase-inner { padding: 48px var(--pad); }
+    .showcase-copy { width: 100%; }
+    .sec-head { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 679px) {
+    :root { --pad: 24px; }
+    .hero { height: auto; min-height: 600px; padding: 140px 0 60px; }
+    /* 窄屏：刻度环整体缩小并上移，环心对着标签与输入框之间（横向超出的部分由 .hero-bg 裁掉） */
+    .dial { --dial-k: .72; --dial-y: 461px; }
+    .hero-content { padding-top: 240px; }
+    /* 窄屏标签降到 21px：24px 在这宽度会折出「你的数 / 据」的单字孤行（21px 下整句一行排得下） */
+    .tagline { font-size: 21px; }
+    .sec { padding: 48px 0; }
+    .sec-title, .showcase-title, .pledge h2 { font-size: 28px; line-height: 36px; }
+    .cards, .dcards { grid-template-columns: 1fr; }
+    .dcards { margin-top: 64px; }
+    .showcase-body { gap: 24px; padding-top: 48px; }
+    .showcase-title { font-size: 40px; }
+    .showcase-copy { gap: 48px; }
+    .get { padding: 140px 0; }
+    .get-wire { top: 50%; transform: translateY(-50%); }
+    .get-title { font-size: 28px; line-height: 40px; }
+    .get-actions { gap: 16px; }
+    .foot-top { flex-direction: column; gap: 48px; padding: 24px 0 64px; }
+    .foot-cols { gap: 24px; }
+    .foot-col { min-width: 0; flex: 1; }
+    .foot-bottom { justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    html.js .reveal, html.js .revealRotate { opacity: 1; transform: none; transition: none; }
+    .showcase-bg i { animation: none; }
+    .bar.on i { animation: none; height: 100%; }
+    .cursor, .cursor-dot { display: none; }
+    .dial .needle, .dial .arc { animation: none; }
+    .dial .needle { transform: rotate(-32deg); }
+    .btn, .card, .dcard, .try, .card-art svg, .try-icon svg { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="top">
+  <div class="nav-inner">
+    <a class="brand" href="#top">
+      <img src="app-icon.png" alt="" width="32" height="32">
+      <span>AI 控制台</span>
+    </a>
+    <div class="menu">
+      <a href="#features">功能</a>
+      <a href="#showcase">场景</a>
+      <a href="#faq">常见问题</a>
+      <a href="privacy.html">隐私政策</a>
+    </div>
+    <div class="nav-right">
+      <a class="btn" href="#download">参与邀测</a>
+    </div>
+    <button class="burger" id="burger" aria-label="打开菜单" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="drawer" id="drawer">
+      <a href="#features">功能</a>
+      <a href="#showcase">场景</a>
+      <a href="#faq">常见问题</a>
+      <a href="#download">参与邀测</a>
+      <a href="privacy.html">隐私政策</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-bg">
+    <!-- 首屏背景：刻度环 · 读数（纯 CSS，零 JS 零画布）——三级刻度环绕内容，指针 44s 一圈、
+         外层弧反向缓转；刻度只作版式，不承载任何真实读数含义 -->
+    <div class="dial" aria-hidden="true">
+      <i class="ring-far"></i>
+      <i class="arc"></i>
+      <i class="ticks"></i>
+      <i class="ticks-mid"></i>
+      <i class="ticks-major"></i>
+      <i class="ring"></i>
+      <i class="needle"></i>
+    </div>
+  </div>
+  <div class="hero-content">
+    <p class="tagline revealRotate">你的密钥，你的模型，你的数据</p>
+    <form class="ask reveal" id="heroAsk">
+      <div class="ask-box">
+        <div class="ask-field">
+          <textarea id="heroAskText" rows="1" placeholder="问点难的，交给你的模型" aria-label="提问"></textarea>
+        </div>
+        <div class="ask-send">
+          <button type="submit" aria-label="前往邀请测试">
+            <svg viewBox="0 0 13 16" fill="none"><path d="M12.254 5.465a1.182 1.182 0 0 1-1.67 1.67L7.48 4.033v10.536a1.181 1.181 0 0 1-2.362 0V4.033L2.017 7.135A1.181 1.181 0 1 1 .346 5.465L5.465.346a1.181 1.181 0 0 1 1.67 0l5.119 5.119Z" fill="#fff"/></svg>
+          </button>
+        </div>
+      </div>
+    </form>
+    <div class="hero-cta reveal">
+      <!-- ★ 邀测链接占位：从 AGC「应用测试 → 版本列表 → 分享」复制当前版本分享链接替换 href
+           （taskId 随版本变，以 AGC 当前为准）。按安全红线不拼邀请码，测试者在页面内自行输码。 -->
+      <a class="btn solid" href="#download">参与邀请测试<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+      <a class="btn" href="#features">了解功能<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+    </div>
+  </div>
+</header>
+
+<section class="sec" id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="titles">
+        <h2 class="sec-title">核心能力</h2>
+        <p class="sec-desc">一个客户端接住所有兼容 OpenAI 协议的模型服务，密钥与对话都留在你自己的设备上</p>
+      </div>
+      <a class="btn" href="#faq">常见问题<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+    </div>
+    <div class="cards stagger reveal">
+      <a class="card reveal" href="privacy.html">
+        <div class="card-art">
+          <!-- 自由接入：中心节点向外连接多家服务商 -->
+          <svg viewBox="0 0 320 240" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="acc1" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#8f6bff"/>
+              </linearGradient>
+            </defs>
+            <circle cx="160" cy="120" r="92" stroke="rgba(255,255,255,.07)" stroke-dasharray="2 7"/>
+            <circle cx="160" cy="120" r="62" stroke="rgba(255,255,255,.14)"/>
+            <path d="M64 44 134 104M256 44 186 104M64 196 134 136M256 196 186 136" stroke="rgba(255,255,255,.16)"/>
+            <rect x="44" y="24" width="40" height="40" rx="12" fill="#161616" stroke="rgba(255,255,255,.3)"/>
+            <rect x="236" y="24" width="40" height="40" rx="12" fill="#161616" stroke="rgba(255,255,255,.3)"/>
+            <rect x="44" y="176" width="40" height="40" rx="12" fill="#161616" stroke="rgba(255,255,255,.3)"/>
+            <rect x="236" y="176" width="40" height="40" rx="12" fill="#161616" stroke="rgba(255,255,255,.3)"/>
+            <rect x="130" y="90" width="60" height="60" rx="18" fill="url(#acc1)"/>
+            <path d="M150 120h20M160 110v20" stroke="#0a0a0a" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="card-shade"></div><div class="card-fade"></div>
+        <div class="card-info"><span class="card-tag">多协议</span><span class="card-name">自由接入</span></div>
+      </a>
+      <a class="card reveal" href="#faq">
+        <div class="card-art">
+          <!-- 数据留在设备：机身轮廓 + 本地数据库 + 盾牌 -->
+          <svg viewBox="0 0 320 240" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="acc2" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#4ad2c8"/><stop offset="1" stop-color="#5b8cff"/>
+              </linearGradient>
+            </defs>
+            <rect x="104" y="30" width="112" height="180" rx="20" stroke="rgba(255,255,255,.28)"/>
+            <rect x="140" y="40" width="40" height="6" rx="3" fill="rgba(255,255,255,.18)"/>
+            <ellipse cx="160" cy="118" rx="40" ry="14" fill="url(#acc2)" opacity=".9"/>
+            <path d="M120 118v34c0 7.7 17.9 14 40 14s40-6.3 40-14v-34" stroke="url(#acc2)" stroke-width="2"/>
+            <path d="M160 150v-6" stroke="#0a0a0a" stroke-width="3"/>
+            <path d="M60 176c-14-10-20-24-20-42 0-12 4-22 12-30l8 8c-6 6-9 13-9 22 0 14 5 25 16 32l-7 10Z" fill="rgba(255,255,255,.22)"/>
+            <path d="M260 176c14-10 20-24 20-42 0-12-4-22-12-30l-8 8c6 6 9 13 9 22 0 14-5 25-16 32l7 10Z" fill="rgba(255,255,255,.22)"/>
+          </svg>
+        </div>
+        <div class="card-shade"></div><div class="card-fade"></div>
+        <div class="card-info"><span class="card-tag">本地存储</span><span class="card-name">数据留在设备</span></div>
+      </a>
+      <a class="card reveal" href="#showcase">
+        <div class="card-art">
+          <!-- 助手与提示词：叠放的提示词卡 + 角色头像 -->
+          <svg viewBox="0 0 320 240" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="acc3" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#8f6bff"/><stop offset="1" stop-color="#ff8f6b"/>
+              </linearGradient>
+            </defs>
+            <rect x="70" y="52" width="180" height="132" rx="16" fill="#151515" stroke="rgba(255,255,255,.1)" transform="rotate(-6 160 118)"/>
+            <rect x="76" y="58" width="180" height="132" rx="16" fill="#191919" stroke="rgba(255,255,255,.16)"/>
+            <circle cx="104" cy="86" r="13" fill="url(#acc3)"/>
+            <path d="M132 82h92M132 94h60" stroke="rgba(255,255,255,.34)" stroke-width="4" stroke-linecap="round"/>
+            <path d="M100 126h124M100 144h96M100 162h64" stroke="rgba(255,255,255,.18)" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="card-shade"></div><div class="card-fade"></div>
+        <div class="card-info"><span class="card-tag">助手体系</span><span class="card-name">一人一套提示词</span></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="showcase" id="showcase">
+  <div class="showcase-bg" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="showcase-inner">
+    <div class="sec-head center reveal">
+      <h2 class="sec-title">一个入口，管好所有模型</h2>
+      <p class="sec-desc">以自定义服务商与助手体系为底座，深度对话、工具调用与用量统计都在一个应用里完成</p>
+    </div>
+    <div class="showcase-body reveal">
+      <div class="bars" id="bars">
+        <div class="bar on" data-i="0"><i></i></div>
+        <div class="bar" data-i="1"><i></i></div>
+        <div class="bar" data-i="2"><i></i></div>
+      </div>
+      <div class="showcase-copy" id="showcaseCopy">
+        <div class="titles">
+          <h3 class="showcase-title" id="scTitle">多模型自由切换</h3>
+          <p class="showcase-slogan" id="scSlogan">会话内随时切换服务商与模型，历史上下文完整保留，不用重新开一个对话。</p>
+        </div>
+        <a class="btn" href="#features">查看功能<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="doodle">
+  <div class="wrap">
+    <div class="sec-head center reveal">
+      <h2 class="sec-title">细节之处，见用心</h2>
+      <p class="sec-desc">从深浅色跟随到加密会话，每一处都按鸿蒙的设计规范打磨</p>
+    </div>
+    <div class="dcards stagger reveal">
+      <div class="dcard reveal">
+        <div class="dcard-art">
+          <!-- 深浅色与光感：左右分屏的明暗对比 -->
+          <svg viewBox="0 0 320 260" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="d1" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#ffffff" stop-opacity=".92"/>
+                <stop offset="1" stop-color="#ffffff" stop-opacity=".08"/>
+              </linearGradient>
+            </defs>
+            <rect x="60" y="46" width="200" height="168" rx="18" stroke="rgba(255,255,255,.22)"/>
+            <path d="M160 46v168" stroke="rgba(255,255,255,.16)"/>
+            <path d="M160 46h82a18 18 0 0 1 18 18v132a18 18 0 0 1-18 18h-82z" fill="rgba(255,255,255,.06)"/>
+            <circle cx="106" cy="104" r="18" fill="url(#d1)"/>
+            <circle cx="214" cy="104" r="18" fill="rgba(255,255,255,.14)"/>
+            <path d="M84 148h52M84 166h36M196 148h44M196 166h28" stroke="rgba(255,255,255,.24)" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="dcard-info">
+          <h3>深浅色与沉浸光感</h3>
+          <p>跟随系统深浅色切换，标题栏与弹窗按官方光感规范呈现。</p>
+        </div>
+      </div>
+      <div class="dcard reveal">
+        <div class="dcard-art">
+          <!-- 隐私与加密会话：挂锁 + 虚线边框 -->
+          <svg viewBox="0 0 320 260" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="d2" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#4ad2c8"/><stop offset="1" stop-color="#5b8cff"/>
+              </linearGradient>
+            </defs>
+            <rect x="62" y="58" width="196" height="150" rx="18" stroke="rgba(255,255,255,.2)" stroke-dasharray="6 8"/>
+            <rect x="122" y="118" width="76" height="60" rx="12" fill="url(#d2)" opacity=".92"/>
+            <path d="M138 118v-14a22 22 0 0 1 44 0v14" stroke="url(#d2)" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="160" cy="144" r="7" fill="#0a0a0a"/>
+            <path d="M160 151v10" stroke="#0a0a0a" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="dcard-info">
+          <h3>隐私与加密会话</h3>
+          <p>会话可以加锁，附件与密钥只落在设备本地，退出即清理在途缓存。</p>
+        </div>
+      </div>
+      <div class="dcard reveal">
+        <div class="dcard-art">
+          <!-- 记忆与用量：记忆条目 + 用量柱状 -->
+          <svg viewBox="0 0 320 260" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="d3" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stop-color="#5b8cff" stop-opacity=".35"/>
+                <stop offset="1" stop-color="#5b8cff"/>
+              </linearGradient>
+            </defs>
+            <rect x="58" y="52" width="120" height="26" rx="13" stroke="rgba(255,255,255,.26)"/>
+            <rect x="58" y="88" width="88" height="26" rx="13" stroke="rgba(255,255,255,.18)"/>
+            <rect x="58" y="124" width="104" height="26" rx="13" stroke="rgba(255,255,255,.14)"/>
+            <rect x="186" y="150" width="22" height="40" rx="6" fill="url(#d3)"/>
+            <rect x="216" y="126" width="22" height="64" rx="6" fill="url(#d3)"/>
+            <rect x="246" y="96" width="22" height="94" rx="6" fill="url(#d3)"/>
+            <path d="M186 196h82" stroke="rgba(255,255,255,.22)"/>
+            <path d="M58 168h104M58 186h72" stroke="rgba(255,255,255,.16)" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="dcard-info">
+          <h3>记忆与用量统计</h3>
+          <p>让模型记住你的偏好，也让你看清每一次调用的 token 用量。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="sec-head center reveal">
+      <h2 class="sec-title">常见问题</h2>
+      <p class="sec-desc">想了解更多，欢迎来信交流</p>
+    </div>
+    <div class="faq reveal">
+      <details>
+        <summary>支持哪些服务商和模型</summary>
+        <p>任何兼容 OpenAI 协议的服务都能接入，例如 DeepSeek、Kimi、智谱、Gemini 及各类中转服务，另有 Anthropic 与 Gemini 的原生协议支持。服务商地址、模型列表与密钥全部自定义，可同时配置多家。</p>
+      </details>
+      <details>
+        <summary>我的数据存在哪里</summary>
+        <p>全部在你的设备上。会话与配置保存在本地加密数据库，访问密钥由系统安全存储保管。应用没有账号体系，没有统计埋点，也不运营服务器。</p>
+      </details>
+      <details>
+        <summary>API 密钥从哪里获取</summary>
+        <p>到对应服务商的官方控制台创建，例如 DeepSeek 开放平台、Kimi 开放平台、智谱 AI 开放平台。应用内新建服务商时可直接套用现成模板，填上密钥即可使用。</p>
+      </details>
+      <details>
+        <summary>应用收费吗</summary>
+        <p>应用本身免费。模型 API 的调用费用由你和服务商按用量结算，应用不经手任何费用。</p>
+      </details>
+      <details>
+        <summary>如何参与测试和反馈</summary>
+        <p>点顶部「参与邀请测试」加入邀测，需要邀请码可以向开发者索取。使用中遇到问题，可在应用内「反馈与建议」直达开发者，或来信 <a href="mailto:335164137@qq.com">335164137@qq.com</a>。</p>
+      </details>
+      <details>
+        <summary>会在应用市场上架吗</summary>
+        <p>正在筹备华为应用市场上架，备案流程完成后开放下载，欢迎先通过邀请测试体验。</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="get" id="download">
+  <div class="get-wire" aria-hidden="true">
+    <!-- 线框背景：透视网格（原绘，非引用素材） -->
+    <svg viewBox="0 0 987 663" fill="none">
+      <g stroke="rgba(255,255,255,.075)">
+        <path d="M100 300h787l-87 320H187z"/>
+        <path d="M115.2 360h756.6M132.6 424h721.8M152.2 494h682.6M174 570h639"/>
+        <path d="M100 300 187 620M231 300 289 620M362 300 391 620M493 300v320M625 300 596 620M756 300 698 620M887 300 800 620" opacity=".55"/>
+      </g>
+    </svg>
+  </div>
+  <div class="wrap get-inner reveal">
+    <img src="app-icon.png" alt="AI 控制台应用图标" width="108" height="108">
+    <h2 class="get-title">为你的模型，配一个控制台</h2>
+    <a class="try" href="#download">
+      <span class="try-text">
+        <span class="try-label">参与邀请测试</span>
+        <span class="try-label-hover">需要邀请码，可向开发者索取</span>
+      </span>
+      <span class="try-icon">
+        <svg viewBox="0 0 13 16" fill="none"><path d="M12.254 5.465a1.182 1.182 0 0 1-1.67 1.67L7.48 4.033v10.536a1.181 1.181 0 0 1-2.362 0V4.033L2.017 7.135A1.181 1.181 0 1 1 .346 5.465L5.465.346a1.181 1.181 0 0 1 1.67 0l5.119 5.119Z" fill="#fff"/></svg>
+      </span>
+    </a>
+    <div class="get-actions">
+      <a class="btn" href="privacy.html">隐私政策<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+      <a class="btn" href="mailto:335164137@qq.com">反馈与建议<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+    </div>
+  </div>
+</section>
+
+<section class="pledge">
+  <div class="wrap reveal">
+    <h2>你的数据属于你自己</h2>
+    <p>本应用不提供 AI 计算服务，也未运营服务器。消息内容只会发往你自行配置的服务商，除此之外不会流向任何第三方。</p>
+    <a class="btn" href="privacy.html">查看隐私政策<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+  </div>
+</section>
+
+<footer>
+  <svg class="foot-glow" viewBox="0 0 1440 526" fill="none" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <filter id="glowA" x="-30%" y="-60%" width="160%" height="260%" color-interpolation-filters="sRGB">
+        <feGaussianBlur stdDeviation="120"/>
+      </filter>
+      <filter id="glowB" x="-30%" y="-60%" width="160%" height="260%" color-interpolation-filters="sRGB">
+        <feGaussianBlur stdDeviation="160"/>
+      </filter>
+    </defs>
+    <g filter="url(#glowA)" opacity=".38">
+      <ellipse cx="400" cy="720" rx="500" ry="320" fill="#9f9f9f"/>
+      <ellipse cx="1060" cy="720" rx="500" ry="320" fill="#9f9f9f"/>
+    </g>
+    <g filter="url(#glowB)" opacity=".42">
+      <ellipse cx="560" cy="800" rx="460" ry="280" fill="#fff"/>
+      <ellipse cx="900" cy="800" rx="460" ry="280" fill="#fff"/>
+    </g>
+  </svg>
+  <div class="foot-inner">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <a class="brand" href="#top">
+          <img src="app-icon.png" alt="" width="40" height="40">
+          <span>AI 控制台</span>
+        </a>
+        <div class="foot-copy">
+          <p>Copyright © 2026 AI 控制台</p>
+          <p>本应用不运营服务器，数据只保存在你的设备上</p>
+        </div>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h4>产品</h4>
+          <a href="#features">核心能力</a>
+          <a href="#showcase">使用场景</a>
+          <a href="#doodle">细节之处</a>
+        </div>
+        <div class="foot-col">
+          <h4>支持</h4>
+          <a href="#faq">常见问题</a>
+          <a href="privacy.html">隐私政策</a>
+          <a href="mailto:335164137@qq.com">反馈与建议</a>
+        </div>
+        <div class="foot-col">
+          <h4>获取</h4>
+          <a href="#download">参与邀请测试</a>
+          <a href="mailto:335164137@qq.com">联系开发者</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 AI 控制台</span>
+      <span class="sep">|</span>
+      <!-- 备案号下来后替换下面这行，并按规范链接到 https://beian.miit.gov.cn -->
+      <span>备案号待填写</span>
+    </div>
+  </div>
+</footer>
+
+<!-- 光标透镜的 SVG 滤镜定义：径向位移图内联为 data URI（页面仍零外部请求）。
+     位移图 = 96×96 PNG，R/G 通道编码 x/y 位移（128 = 无位移基准；圆心放大 1.7 倍、圆边归零）。
+     改强度必须「位移图与 scale 配套改」——scale 是通道值的整体倍率，只改其一等于换了映射表 -->
+<svg class="cursor-lens" aria-hidden="true" width="0" height="0" focusable="false">
+  <filter id="cursorLens" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+    <feImage href="data:image/png;base64,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" result="lensMap" preserveAspectRatio="none"/>
+    <feDisplacementMap in="SourceGraphic" in2="lensMap" scale="16" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<div class="cursor" id="cursor" aria-hidden="true"></div>
+<div class="cursor-dot" id="cursorDot" aria-hidden="true"></div>
+
+<script>
+document.documentElement.classList.add('js');
+(function () {
+  'use strict';
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* ---------- 滚动入场（同参考站：IntersectionObserver + .visible） ----------
+     首屏元素在视口内直接标 visible（否则底部按钮会被 rootMargin 挡在阈值外，opacity 停在 0），
+     首屏之下交给观察器。 */
+  (function reveal() {
+    var els = Array.prototype.slice.call(document.querySelectorAll('.reveal, .revealRotate'));
+    if (!('IntersectionObserver' in window) || reduce.matches) {
+      els.forEach(function (el) { el.classList.add('visible'); });
+      return;
+    }
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    var rest = els.filter(function (el) {
+      var r = el.getBoundingClientRect();
+      if (r.top < vh - 24 && r.bottom > 0) { el.classList.add('visible'); return false; }
+      return true;
+    });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+      });
+    }, { threshold: .12 });
+    rest.forEach(function (el) { io.observe(el); });
+  })();
+
+  /* ---------- 自定义光标（环形跟手 + 悬停放大） ---------- */
+  (function cursor() {
+    var ring = document.getElementById('cursor');
+    var dot = document.getElementById('cursorDot');
+    if (!ring || !dot || reduce.matches) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    var tx = -100, ty = -100, rx = -100, ry = -100, alive = false, shown = false;
+    function show() {
+      shown = true;
+      rx = tx; ry = ty;   // 复位到当前点：离窗期间环不可见，回来时不该从上次离开的位置滑入
+      ring.style.opacity = '1'; dot.style.opacity = '1';
+    }
+    document.addEventListener('mousemove', function (e) {
+      tx = e.clientX; ty = e.clientY;
+      if (!alive) { alive = true; requestAnimationFrame(loop); }
+      if (!shown) show();   // 指针出窗再回来（点到窗口外 / 切走窗口）后必须重新显示
+    }, { passive: true });
+    document.addEventListener('mouseleave', function () {
+      shown = false;
+      ring.style.opacity = '0'; dot.style.opacity = '0';
+    });
+    document.addEventListener('mouseover', function (e) {
+      var hit = e.target.closest('a, button, summary, .card, .dcard, .try, [data-cursor-hover]');
+      ring.classList.toggle('is-hover', !!hit);
+    }, { passive: true });
+    function loop() {
+      rx += (tx - rx) * 0.18;
+      ry += (ty - ry) * 0.18;
+      ring.style.translate = rx + 'px ' + ry + 'px';
+      dot.style.translate = tx + 'px ' + ty + 'px';
+      requestAnimationFrame(loop);
+    }
+  })();
+
+  /* ---------- 移动端抽屉 ---------- */
+  (function drawer() {
+    var btn = document.getElementById('burger');
+    var panel = document.getElementById('drawer');
+    if (!btn || !panel) return;
+    btn.addEventListener('click', function () {
+      var open = panel.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.setAttribute('aria-label', open ? '关闭菜单' : '打开菜单');
+    });
+    panel.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') {
+        panel.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  })();
+
+  /* ---------- 首屏提问框：回车或点击发送 → 滚动到邀请测试入口 ---------- */
+  (function ask() {
+    var form = document.getElementById('heroAsk');
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var target = document.getElementById('download');
+      if (target) target.scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'center' });
+    });
+  })();
+
+  /* ---------- 场景轮播（6s 自动切换 + 指示条进度） ---------- */
+  (function showcase() {
+    var wrap = document.getElementById('showcaseCopy');
+    var bars = Array.prototype.slice.call(document.querySelectorAll('#bars .bar'));
+    var title = document.getElementById('scTitle');
+    var slogan = document.getElementById('scSlogan');
+    if (!wrap || !bars.length || !title || !slogan) return;
+    var items = [
+      { t: '多模型自由切换', s: '会话内随时切换服务商与模型，历史上下文完整保留，不用重新开一个对话。' },
+      { t: '工具调用闭环', s: '联网搜索、文档解析与设置操作，模型能直接动手完成，单次轮数上限由你决定。' },
+      { t: '数据只在本机', s: '会话、助手与密钥全部保存在设备本地，没有账号体系，也没有统计埋点。' }
+    ];
+    var cur = 0, timer = 0;
+
+    function paint(i) {
+      cur = i;
+      bars.forEach(function (b, k) { b.classList.toggle('on', k === i); });
+      // 重新触发进度条动画（先移除再强制回流后加回）
+      var bar = bars[i], fill = bar.querySelector('i');
+      if (fill && !reduce.matches) {
+        bar.classList.remove('on');
+        void bar.offsetWidth;
+        bar.classList.add('on');
+      }
+      wrap.classList.remove('swap');
+      void wrap.offsetWidth;
+      title.textContent = items[i].t;
+      slogan.textContent = items[i].s;
+      wrap.classList.add('swap');
+    }
+    function next() { paint((cur + 1) % items.length); }
+    function start() { stop(); if (!reduce.matches) timer = setInterval(next, 6000); }
+    function stop() { if (timer) { clearInterval(timer); timer = 0; } }
+
+    bars.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var i = parseInt(b.getAttribute('data-i'), 10);
+        if (i !== cur) paint(i);
+        start();
+      });
+    });
+    wrap.addEventListener('mouseenter', stop);
+    wrap.addEventListener('mouseleave', start);
+    // 页面不可见时暂停，回来再续
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) stop(); else start();
+    });
+    start();
+  })();
+})();
+</script>
+
+</body>
+</html>
