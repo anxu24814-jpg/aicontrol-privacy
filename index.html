@@ -3,21 +3,147 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 控制台 - 隐私政策</title>
+<title>AI 控制台 · 隐私政策</title>
+<meta name="description" content="AI 控制台隐私政策：本应用为本地 AI 对话客户端，不收集、不上传任何用户数据。">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
 <style>
-  body { font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; margin: 0; padding: 0; background: #f5f6f7; color: #1a1a1a; line-height: 1.8; }
-  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
-  h1 { font-size: 22px; text-align: center; margin: 12px 0 4px; }
-  .date { text-align: center; font-size: 13px; color: #999; margin-bottom: 28px; }
-  h2 { font-size: 16px; margin: 26px 0 8px; }
-  p { font-size: 14px; margin: 0 0 12px; color: #333; }
-  .card { background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  /* 视觉基线同 index.html（2026-09-09 高保真复刻 moonshot.cn：黑底白字 + 毛玻璃导航 + 卡片圆角 16）。
+     ★ 正文 12 节逐字与应用内 PrivacyPolicyPage.ets 及 docs/上架素材/隐私政策.html 同文，改版式不得动文字。 */
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; }
+  body {
+    background: #000;
+    color: #fff;
+    font-family: "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: .00938em;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; max-width: 100%; }
+  a { color: inherit; }
+  ::-webkit-scrollbar { width: 4px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: #45454e; border-radius: 2px; }
+  :root { --pad: 80px; --nav-h: 72px; --wrap: 1440px; --line: rgba(255,255,255,.12); }
+
+  /* ---------- 导航（与首页同款毛玻璃吸顶） ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(0,0,0,.4);
+    backdrop-filter: blur(16.75px);
+    -webkit-backdrop-filter: blur(16.75px);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .nav { background: rgba(0,0,0,.86); }
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: var(--nav-h); max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad);
+    position: relative;
+  }
+  .brand { flex-shrink: 0; display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand img { width: 32px; height: 32px; border-radius: 9px; }
+  .brand span { font-size: 19px; font-weight: 600; letter-spacing: .2px; }
+  .menu { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 24px; }
+  .menu a {
+    padding: 4px 8px; border-radius: 8px; font-size: 16px; line-height: 24px;
+    font-weight: 380; color: rgba(255,255,255,.56); text-decoration: none;
+    white-space: nowrap; transition: color .2s;
+  }
+  .menu a:hover { color: rgba(255,255,255,.84); }
+  .menu a.on { color: rgba(255,255,255,.84); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 9px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.42);
+    background: transparent; color: rgba(255,255,255,.56); font-size: 15px; font-weight: 450;
+    line-height: 24px; text-decoration: none; white-space: nowrap;
+    transition: border-color .2s, background .2s, color .2s;
+  }
+  .btn:hover { border-color: #fff; background: rgba(255,255,255,.05); color: #fff; }
+  .burger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; background: none; cursor: pointer; }
+  .burger svg { width: 24px; height: 24px; stroke: #fff; stroke-width: 2; }
+  .drawer {
+    display: none; flex-direction: column; position: absolute; top: var(--nav-h); left: 0; right: 0; z-index: 1;
+    height: calc(100vh - var(--nav-h)); height: calc(100dvh - var(--nav-h));
+    overflow-y: auto; padding: 8px 48px 24px; background: #121212;
+  }
+  .drawer.open { display: flex; }
+  .drawer a {
+    display: block; padding: 12px 0; font-size: 16px; line-height: 24px;
+    color: rgba(255,255,255,.6); text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .drawer a:hover { color: #fff; }
+
+  /* ---------- 正文 ---------- */
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 72px 0 40px; text-align: center; }
+  header img { width: 64px; height: 64px; border-radius: 17px; margin: 0 auto; }
+  h1 { font-size: 30px; font-weight: 500; line-height: 40px; margin: 20px 0 10px; }
+  .date { font-size: 14px; color: rgba(255,255,255,.42); }
+
+  .card {
+    background: #121212; border: 1px solid var(--line); border-radius: 16px;
+    padding: 40px 36px 44px;
+  }
+  h2 { font-size: 18px; font-weight: 500; line-height: 26px; margin: 34px 0 10px; }
+  h2:first-of-type { margin-top: 0; }
+  p { font-size: 15.5px; line-height: 1.85; color: #a3a3a3; margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  a.mail { color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.3); }
+  a.mail:hover { border-bottom-color: #fff; }
+
+  .foot { text-align: center; padding: 36px 0 72px; font-size: 14px; color: rgba(255,255,255,.42); }
+  .foot a { text-decoration: none; }
+  .foot a:hover { color: #fff; }
+
+  @media (max-width: 999px) {
+    :root { --pad: 48px; }
+    .menu { display: none; }
+    .burger { display: flex; }
+  }
+  @media (max-width: 679px) {
+    :root { --pad: 24px; }
+    header { padding: 48px 0 28px; }
+    h1 { font-size: 24px; }
+    .card { padding: 28px 20px 32px; }
+  }
 </style>
 </head>
 <body>
+
+<nav class="nav" id="top">
+  <div class="nav-inner">
+    <a class="brand" href="site/index.html">
+      <img src="app-icon.png" alt="" width="32" height="32">
+      <span>AI 控制台</span>
+    </a>
+    <div class="menu">
+      <a href="site/index.html#features">功能</a>
+      <a href="site/index.html#showcase">场景</a>
+      <a href="site/index.html#faq">常见问题</a>
+      <a href="./" class="on" aria-current="page">隐私政策</a>
+    </div>
+    <a class="btn" href="site/index.html#download">参与邀测</a>
+    <button class="burger" id="burger" aria-label="打开菜单" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="drawer" id="drawer">
+      <a href="site/index.html#features">功能</a>
+      <a href="site/index.html#showcase">场景</a>
+      <a href="site/index.html#faq">常见问题</a>
+      <a href="site/index.html#download">参与邀测</a>
+      <a href="./">隐私政策</a>
+    </div>
+  </div>
+</nav>
+
 <div class="wrap">
-  <h1>AI 控制台 · 隐私政策</h1>
-  <div class="date">更新日期：2026-09-07</div>
+  <header>
+    <img src="app-icon.png" alt="AI 控制台应用图标">
+    <h1>AI 控制台 · 隐私政策</h1>
+    <div class="date">更新日期：2026-09-07</div>
+  </header>
+
   <div class="card">
     <h2>一、引言</h2>
     <p>本隐私政策适用于「AI 控制台」（以下简称"本应用"）。本应用是一款本地 AI 对话客户端：您自行配置 AI 服务的接入地址与访问密钥，本应用仅作为客户端协助您与该服务交互，不提供任何 AI 计算服务，也未运营任何服务器。使用本应用即表示您同意本政策的约定；如您不同意，请停止使用。</p>
@@ -53,8 +179,26 @@
     <p>本政策可能因功能或法规要求调整而更新，更新后会在本应用内公布并标注新日期；重大变更将以显著方式提示。</p>
 
     <h2>十二、联系我们</h2>
-    <p>如您对本政策或本应用的数据处理有任何疑问，请通过邮箱 335164137@qq.com 与我们联系。</p>
+    <p>如您对本政策或本应用的数据处理有任何疑问，请通过邮箱 <a class="mail" href="mailto:335164137@qq.com">335164137@qq.com</a> 与我们联系。</p>
+  </div>
+
+  <div class="foot">
+    <a href="site/index.html">返回首页</a>
   </div>
 </div>
+
+<script>
+(function () {
+  var btn = document.getElementById('burger');
+  var panel = document.getElementById('drawer');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', function () {
+    var open = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? '关闭菜单' : '打开菜单');
+  });
+})();
+</script>
+
 </body>
 </html>
