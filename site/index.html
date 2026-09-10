@@ -276,12 +276,14 @@
   /* ---------- 核心能力卡（媒体区悬停由灰转彩 + 微放大） ---------- */
   .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px; }
   .card {
+    --mx: 50%; --my: 50%;
     position: relative; display: block; overflow: clip;
     aspect-ratio: 154 / 117; border-radius: 16px; text-decoration: none;
     background: var(--panel); border: 1px solid var(--line);
-    transition: transform .2s;
+    transition: transform .2s, border-color .3s ease, box-shadow .35s ease;
   }
-  .card:hover { transform: translateY(-4px); }
+  .card:hover { border-color: rgba(255,255,255,.26); box-shadow: 0 18px 50px rgba(0,0,0,.55); }
+  .card:focus-visible, .dcard:focus-visible { outline: 2px solid rgba(255,255,255,.55); outline-offset: 3px; }
   .card-art { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
   .card-art svg { width: 100%; height: 100%; filter: grayscale(1) brightness(1.55); transition: transform .3s ease, filter .4s ease; }
   .card:hover .card-art svg { transform: scale(1.05); filter: grayscale(0) brightness(1.25); }
@@ -291,9 +293,49 @@
     position: absolute; left: 0; right: 0; bottom: 0; height: 37%; pointer-events: none;
     background: linear-gradient(to top, rgba(0,0,0,.8) 62.5%, transparent);
   }
-  .card-info { position: absolute; left: 19px; right: 19px; bottom: 22px; display: flex; flex-direction: column; gap: 4px; }
+  .card-info { position: absolute; left: 19px; right: 62px; bottom: 22px; display: flex; flex-direction: column; gap: 4px; }
   .card-tag { font-size: 14px; line-height: 20px; color: var(--dim); }
   .card-name { font-size: 16px; font-weight: 500; line-height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- 入场动画与 hover 抬升的分工 ---------- */
+  /* 入场那两套规则用 transform 落位，而 `html.js .stagger.visible > .reveal { transform: none }` 的权重
+     高于 `.card:hover`——同用 transform 时抬升会被整条盖掉（旧版即如此），且会被入场那套 0.9s 曲线接管。
+     这里把抬升改成独立的 translate 属性：入场仍走原 0.9s 曲线，抬升走 0.22s 短曲线，互不干扰。 */
+  html.js .reveal.visible.card, html.js .reveal.visible.dcard {
+    transition: opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1),
+                translate .22s cubic-bezier(.16,1,.3,1), border-color .3s ease, box-shadow .35s ease;
+  }
+  html.js .reveal.visible.card:hover, html.js .reveal.visible.dcard:hover { translate: 0 -4px; }
+
+  /* ---------- 核心能力卡：指针跟随柔光 + 进入详情的圆键 ---------- */
+  /* 柔光位置由脚本写 --mx/--my（rAF 合帧），只改一个自定义属性，不触发布局 */
+  .card-glow {
+    position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .45s ease;
+    background: radial-gradient(340px circle at var(--mx) var(--my), rgba(255,255,255,.12), transparent 70%);
+  }
+  .card:hover .card-glow { opacity: 1; }
+  .card-go {
+    position: absolute; right: 16px; bottom: 20px; z-index: 4;
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 50%; color: #fff;
+    background: rgba(255,255,255,.14); border: .5px solid rgba(255,255,255,.22);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    opacity: 0; transform: translateY(6px) scale(.94);
+    transition: opacity .32s cubic-bezier(.16,1,.3,1), transform .32s cubic-bezier(.16,1,.3,1),
+                background .2s, color .2s;
+  }
+  .card-go svg { width: 15px; height: 10px; }
+  .card:hover .card-go, .card:focus-visible .card-go { opacity: 1; transform: none; }
+  .card:hover .card-go { background: rgba(255,255,255,.9); color: #000; }
+  /* 悬停时插画内的元素活起来：连线走电流、外环缓转、正文线提亮 */
+  .card-art .dash { stroke-dasharray: 5 9; }
+  .card:hover .card-art .dash { animation: cardDash 2.6s linear infinite; }
+  @keyframes cardDash { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -56; } }
+  .card-art .spin { transform-box: fill-box; transform-origin: 50% 50%; }
+  .card:hover .card-art .spin { animation: cardSpin 24s linear infinite; }
+  @keyframes cardSpin { to { transform: rotate(360deg); } }
+  .card-art .breathe { transition: opacity .45s ease; opacity: .55; }
+  .card:hover .card-art .breathe { opacity: 1; }
 
   /* ---------- 场景轮播（背景用极光层替代视频） ---------- */
   .showcase { position: relative; overflow: hidden; background: #000; }
@@ -330,12 +372,48 @@
   .dcard {
     display: flex; flex-direction: column; aspect-ratio: 7 / 6; border-radius: 16px; overflow: hidden;
     background: linear-gradient(0deg, rgba(0,0,0,.2), rgba(0,0,0,.2)), var(--panel);
-    border: .5px solid var(--line); transition: transform .2s;
+    border: .5px solid var(--line); text-decoration: none;
+    transition: transform .2s, border-color .3s ease, box-shadow .35s ease;
   }
-  .dcard:hover { transform: translateY(-4px); }
+  .dcard:hover { border-color: rgba(255,255,255,.24); box-shadow: 0 18px 50px rgba(0,0,0,.5); }
   .dcard-art { flex: 1; min-height: 0; overflow: hidden; background: #141414; }
   .dcard-art svg { width: 100%; height: 100%; }
-  .dcard-info { flex-shrink: 0; padding: 24px 20px; display: flex; flex-direction: column; gap: 4px; }
+  .dcard-info { position: relative; flex-shrink: 0; padding: 24px 20px; display: flex; flex-direction: column; gap: 4px; }
+  /* 悬停时卡内从左侧扫出一条细线，作为「可进入」的第二重暗示 */
+  .dcard-info::after {
+    content: ""; position: absolute; left: 20px; right: 20px; bottom: 14px; height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,.34), rgba(255,255,255,0));
+    transform: scaleX(0); transform-origin: 0 50%;
+    transition: transform .55s cubic-bezier(.16,1,.3,1);
+  }
+  .dcard:hover .dcard-info::after { transform: scaleX(1); }
+  .dcard-line { display: flex; align-items: center; gap: 10px; }
+  .dcard-line h3 { flex: 1; min-width: 0; }
+  .dcard-go {
+    flex: none; display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%; color: rgba(255,255,255,.7);
+    background: rgba(255,255,255,.08);
+    transition: transform .3s cubic-bezier(.16,1,.3,1), background .25s, color .25s;
+  }
+  .dcard-go svg { width: 12px; height: 8px; }
+  .dcard:hover .dcard-go { transform: translateX(2px); background: rgba(255,255,255,.9); color: #000; }
+  /* 悬停时插画元素各自做一个克制的小动作：上移 / 生长 / 呼吸 */
+  .dcard-art .lift, .dcard-art .grow, .dcard-art .breathe {
+    transform-box: fill-box;
+    transition: transform .5s cubic-bezier(.16,1,.3,1), opacity .45s ease;
+  }
+  .dcard-art .lift { transform-origin: 50% 100%; }
+  .dcard:hover .dcard-art .lift { transform: translateY(-7px); }
+  .dcard-art .grow { transform-origin: 50% 100%; transform: scaleY(.45); }
+  .dcard:hover .dcard-art .grow { transform: scaleY(1); }
+  .dcard-art .grow-2 { transition-delay: .06s; }
+  .dcard-art .grow-3 { transition-delay: .12s; }
+  .dcard-art .breathe { transform-origin: 50% 50%; opacity: .55; }
+  .dcard:hover .dcard-art .breathe { animation: cardBreathe 2.6s ease-in-out infinite; }
+  @keyframes cardBreathe {
+    0%, 100% { opacity: .55; transform: scale(.97); }
+    50% { opacity: 1; transform: scale(1.03); }
+  }
   .dcard-info h3 { font-size: 16px; font-weight: 500; line-height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dcard-info p { font-size: 14px; line-height: 20px; color: rgba(255,255,255,.42); }
 
@@ -401,6 +479,72 @@
   .pledge h2 { font-size: 32px; font-weight: 500; line-height: 40px; }
   .pledge p { margin: 16px auto 28px; max-width: 640px; font-size: 18px; line-height: 1.52; color: #737373; }
 
+  /* ---------- 详情层（点卡片进入 · hash 可直达 · 无 JS 走 :target） ---------- */
+  /* 面板固定在视口内自滚，body 由脚本锁滚动；打开只做 opacity/transform，不触发布局 */
+  .sheet { position: fixed; inset: 0; z-index: 300; display: none; }
+  .sheet::before {
+    content: ""; position: absolute; inset: 0; opacity: 0;
+    background: rgba(0,0,0,.72); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: opacity .3s ease;
+  }
+  .sheet.open, html:not(.js) .sheet:target { display: flex; align-items: center; justify-content: center; padding: 40px; }
+  .sheet.open::before, html:not(.js) .sheet:target::before { opacity: 1; }
+  .sheet-panel {
+    position: relative; display: flex; flex-direction: column;
+    width: 100%; max-width: 1040px; max-height: min(88vh, 920px);
+    border-radius: 24px; overflow: hidden;
+    background: linear-gradient(180deg, #151515, #0b0b0b);
+    border: 1px solid rgba(255,255,255,.13);
+    box-shadow: 0 40px 120px rgba(0,0,0,.72);
+    opacity: 0; transform: translateY(26px) scale(.985);
+    transition: opacity .42s cubic-bezier(.16,1,.3,1), transform .42s cubic-bezier(.16,1,.3,1);
+  }
+  .sheet.open .sheet-panel, html:not(.js) .sheet:target .sheet-panel { opacity: 1; transform: none; }
+  .sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 60px 60px 44px; }
+  .sheet-body::-webkit-scrollbar { width: 3px; }
+  .sheet-close {
+    position: absolute; top: 20px; right: 20px; z-index: 3;
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; padding: 0; border: .5px solid var(--line); border-radius: 50%;
+    background: rgba(255,255,255,.06); color: var(--dim); cursor: pointer;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transition: background .2s, color .2s, transform .3s cubic-bezier(.16,1,.3,1);
+  }
+  .sheet-close:hover { background: rgba(255,255,255,.9); color: #000; transform: rotate(90deg); }
+  .sheet-close svg { width: 14px; height: 14px; }
+  .sheet-kicker { font-size: 13px; line-height: 20px; letter-spacing: .14em; color: var(--dim-2); }
+  .sheet-title { margin-top: 14px; font-size: 40px; font-weight: 500; line-height: 1.15; letter-spacing: -.4px; }
+  .sheet-lead { margin-top: 16px; max-width: 740px; font-size: 17px; line-height: 1.72; color: #737373; }
+  /* 规格带：三个关键数字，等宽数字对齐，强化「技术参数」气质 */
+  .sheet-specs {
+    display: flex; flex-wrap: wrap; gap: 20px 56px; margin-top: 32px;
+    padding: 22px 28px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.02);
+  }
+  .spec b { display: block; font-size: 26px; font-weight: 500; line-height: 32px; letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+  .spec span { display: block; margin-top: 4px; font-size: 13px; line-height: 20px; color: var(--dim-2); }
+  .sheet-points { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px 44px; margin-top: 40px; }
+  .point { display: flex; gap: 16px; }
+  .point-n { flex: none; padding-top: 1px; font-size: 13px; line-height: 24px; color: rgba(255,255,255,.32); font-variant-numeric: tabular-nums; }
+  .point h3 { font-size: 16px; font-weight: 500; line-height: 24px; }
+  .point p { margin-top: 6px; font-size: 15px; line-height: 1.72; color: #a3a3a3; }
+  .sheet-foot {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-top: 44px; padding-top: 28px; border-top: 1px solid var(--line);
+  }
+  .sheet-note { margin-right: auto; max-width: 560px; font-size: 13px; line-height: 1.65; color: var(--dim-2); }
+  /* 面板内容逐块上浮（每次打开重放：.open 移除后动画属性一并失效） */
+  .sheet.open .sheet-body > *, html:not(.js) .sheet:target .sheet-body > * {
+    animation: sheetRise .55s cubic-bezier(.16,1,.3,1) both;
+  }
+  .sheet.open .sheet-body > *:nth-child(2), html:not(.js) .sheet:target .sheet-body > *:nth-child(2) { animation-delay: .06s; }
+  .sheet.open .sheet-body > *:nth-child(3), html:not(.js) .sheet:target .sheet-body > *:nth-child(3) { animation-delay: .12s; }
+  .sheet.open .sheet-body > *:nth-child(4), html:not(.js) .sheet:target .sheet-body > *:nth-child(4) { animation-delay: .18s; }
+  .sheet.open .sheet-body > *:nth-child(5), html:not(.js) .sheet:target .sheet-body > *:nth-child(5) { animation-delay: .24s; }
+  .sheet.open .sheet-body > *:nth-child(6), html:not(.js) .sheet:target .sheet-body > *:nth-child(6) { animation-delay: .3s; }
+  @keyframes sheetRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .sheet .btn { padding: 10px 18px; font-size: 15px; }
+  .sheet .btn:hover, .sheet .btn:focus-visible { padding: 10px 10px 10px 18px; }
+
   /* ---------- 页脚 ---------- */
   footer { position: relative; overflow: hidden; background: #000; padding: 48px 0; }
   .foot-glow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -439,6 +583,9 @@
     .showcase-inner { padding: 48px var(--pad); }
     .showcase-copy { width: 100%; }
     .sec-head { flex-direction: column; align-items: flex-start; }
+    .sheet.open, html:not(.js) .sheet:target { padding: 24px; }
+    .sheet-body { padding: 48px 40px 36px; }
+    .sheet-points { grid-template-columns: 1fr; gap: 24px; }
   }
   @media (max-width: 679px) {
     :root { --pad: 24px; }
@@ -463,6 +610,17 @@
     .foot-cols { gap: 24px; }
     .foot-col { min-width: 0; flex: 1; }
     .foot-bottom { justify-content: center; }
+    /* 窄屏详情层：面板占满视口，圆角与侧边距归零，关闭键用 body 顶部留白让位 */
+    .sheet.open, html:not(.js) .sheet:target { padding: 0; }
+    .sheet-panel { max-width: none; max-height: none; height: 100%; border-radius: 0; border: 0; }
+    .sheet-body { padding: 74px 24px 36px; }
+    .sheet-close { top: 16px; right: 16px; }
+    .sheet-title { font-size: 28px; }
+    .sheet-lead { font-size: 16px; }
+    .sheet-specs { gap: 16px 28px; padding: 18px 20px; }
+    .spec b { font-size: 22px; line-height: 28px; }
+    .sheet-points { margin-top: 28px; }
+    .sheet-foot { margin-top: 32px; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -473,6 +631,11 @@
     .dial .needle, .dial .arc { animation: none; }
     .dial .needle { transform: rotate(-32deg); }
     .btn, .card, .dcard, .try, .card-art svg, .try-icon svg { transition: none; }
+    html.js .reveal.visible.card, html.js .reveal.visible.dcard { transition: none; }
+    .card-glow { display: none; }
+    .sheet::before, .sheet-panel, .sheet-close, .dcard-info::after, .dcard-go { transition: none; }
+    .sheet.open .sheet-body > *, html:not(.js) .sheet:target .sheet-body > * { animation: none; }
+    .card-art .dash, .card-art .spin, .dcard-art .breathe { animation: none; }
   }
 </style>
 </head>
@@ -553,7 +716,7 @@
       <a class="btn" href="#faq">常见问题<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
     </div>
     <div class="cards stagger reveal">
-      <a class="card reveal" href="privacy.html">
+      <a class="card reveal" href="#cap-access" data-sheet="cap-access">
         <div class="card-art">
           <!-- 自由接入：中心节点向外连接多家服务商 -->
           <svg viewBox="0 0 320 240" fill="none" aria-hidden="true">
@@ -562,9 +725,9 @@
                 <stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#8f6bff"/>
               </linearGradient>
             </defs>
-            <circle cx="160" cy="120" r="92" stroke="rgba(255,255,255,.07)" stroke-dasharray="2 7"/>
+            <circle class="spin" cx="160" cy="120" r="92" stroke="rgba(255,255,255,.07)" stroke-dasharray="2 7"/>
             <circle cx="160" cy="120" r="62" stroke="rgba(255,255,255,.14)"/>
-            <path d="M64 44 134 104M256 44 186 104M64 196 134 136M256 196 186 136" stroke="rgba(255,255,255,.16)"/>
+            <path class="dash" d="M64 44 134 104M256 44 186 104M64 196 134 136M256 196 186 136" stroke="rgba(255,255,255,.16)"/>
             <rect x="44" y="24" width="40" height="40" rx="12" fill="#161616" stroke="rgba(255,255,255,.3)"/>
             <rect x="236" y="24" width="40" height="40" rx="12" fill="#161616" stroke="rgba(255,255,255,.3)"/>
             <rect x="44" y="176" width="40" height="40" rx="12" fill="#161616" stroke="rgba(255,255,255,.3)"/>
@@ -573,10 +736,12 @@
             <path d="M150 120h20M160 110v20" stroke="#0a0a0a" stroke-width="3" stroke-linecap="round"/>
           </svg>
         </div>
+        <div class="card-glow"></div>
         <div class="card-shade"></div><div class="card-fade"></div>
         <div class="card-info"><span class="card-tag">多协议</span><span class="card-name">自由接入</span></div>
+        <span class="card-go" aria-hidden="true"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span>
       </a>
-      <a class="card reveal" href="#faq">
+      <a class="card reveal" href="#cap-local" data-sheet="cap-local">
         <div class="card-art">
           <!-- 数据留在设备：机身轮廓 + 本地数据库 + 盾牌 -->
           <svg viewBox="0 0 320 240" fill="none" aria-hidden="true">
@@ -587,17 +752,19 @@
             </defs>
             <rect x="104" y="30" width="112" height="180" rx="20" stroke="rgba(255,255,255,.28)"/>
             <rect x="140" y="40" width="40" height="6" rx="3" fill="rgba(255,255,255,.18)"/>
-            <ellipse cx="160" cy="118" rx="40" ry="14" fill="url(#acc2)" opacity=".9"/>
+            <ellipse class="breathe" cx="160" cy="118" rx="40" ry="14" fill="url(#acc2)" opacity=".9"/>
             <path d="M120 118v34c0 7.7 17.9 14 40 14s40-6.3 40-14v-34" stroke="url(#acc2)" stroke-width="2"/>
             <path d="M160 150v-6" stroke="#0a0a0a" stroke-width="3"/>
             <path d="M60 176c-14-10-20-24-20-42 0-12 4-22 12-30l8 8c-6 6-9 13-9 22 0 14 5 25 16 32l-7 10Z" fill="rgba(255,255,255,.22)"/>
             <path d="M260 176c14-10 20-24 20-42 0-12-4-22-12-30l-8 8c6 6 9 13 9 22 0 14-5 25-16 32l7 10Z" fill="rgba(255,255,255,.22)"/>
           </svg>
         </div>
+        <div class="card-glow"></div>
         <div class="card-shade"></div><div class="card-fade"></div>
         <div class="card-info"><span class="card-tag">本地存储</span><span class="card-name">数据留在设备</span></div>
+        <span class="card-go" aria-hidden="true"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span>
       </a>
-      <a class="card reveal" href="#showcase">
+      <a class="card reveal" href="#cap-prompt" data-sheet="cap-prompt">
         <div class="card-art">
           <!-- 助手与提示词：叠放的提示词卡 + 角色头像 -->
           <svg viewBox="0 0 320 240" fill="none" aria-hidden="true">
@@ -608,13 +775,15 @@
             </defs>
             <rect x="70" y="52" width="180" height="132" rx="16" fill="#151515" stroke="rgba(255,255,255,.1)" transform="rotate(-6 160 118)"/>
             <rect x="76" y="58" width="180" height="132" rx="16" fill="#191919" stroke="rgba(255,255,255,.16)"/>
-            <circle cx="104" cy="86" r="13" fill="url(#acc3)"/>
+            <circle class="breathe" cx="104" cy="86" r="13" fill="url(#acc3)"/>
             <path d="M132 82h92M132 94h60" stroke="rgba(255,255,255,.34)" stroke-width="4" stroke-linecap="round"/>
             <path d="M100 126h124M100 144h96M100 162h64" stroke="rgba(255,255,255,.18)" stroke-width="4" stroke-linecap="round"/>
           </svg>
         </div>
+        <div class="card-glow"></div>
         <div class="card-shade"></div><div class="card-fade"></div>
         <div class="card-info"><span class="card-tag">助手体系</span><span class="card-name">一人一套提示词</span></div>
+        <span class="card-go" aria-hidden="true"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span>
       </a>
     </div>
   </div>
@@ -651,7 +820,7 @@
       <p class="sec-desc">从深浅色跟随到加密会话，每一处都按鸿蒙的设计规范打磨</p>
     </div>
     <div class="dcards stagger reveal">
-      <div class="dcard reveal">
+      <a class="dcard reveal" href="#det-theme" data-sheet="det-theme">
         <div class="dcard-art">
           <!-- 深浅色与光感：左右分屏的明暗对比 -->
           <svg viewBox="0 0 320 260" fill="none" aria-hidden="true">
@@ -664,17 +833,20 @@
             <rect x="60" y="46" width="200" height="168" rx="18" stroke="rgba(255,255,255,.22)"/>
             <path d="M160 46v168" stroke="rgba(255,255,255,.16)"/>
             <path d="M160 46h82a18 18 0 0 1 18 18v132a18 18 0 0 1-18 18h-82z" fill="rgba(255,255,255,.06)"/>
-            <circle cx="106" cy="104" r="18" fill="url(#d1)"/>
+            <circle class="breathe" cx="106" cy="104" r="18" fill="url(#d1)"/>
             <circle cx="214" cy="104" r="18" fill="rgba(255,255,255,.14)"/>
             <path d="M84 148h52M84 166h36M196 148h44M196 166h28" stroke="rgba(255,255,255,.24)" stroke-width="4" stroke-linecap="round"/>
           </svg>
         </div>
         <div class="dcard-info">
-          <h3>深浅色与沉浸光感</h3>
+          <div class="dcard-line">
+            <h3>深浅色与沉浸光感</h3>
+            <span class="dcard-go" aria-hidden="true"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span>
+          </div>
           <p>跟随系统深浅色切换，标题栏与弹窗按官方光感规范呈现。</p>
         </div>
-      </div>
-      <div class="dcard reveal">
+      </a>
+      <a class="dcard reveal" href="#det-privacy" data-sheet="det-privacy">
         <div class="dcard-art">
           <!-- 隐私与加密会话：挂锁 + 虚线边框 -->
           <svg viewBox="0 0 320 260" fill="none" aria-hidden="true">
@@ -684,18 +856,21 @@
               </linearGradient>
             </defs>
             <rect x="62" y="58" width="196" height="150" rx="18" stroke="rgba(255,255,255,.2)" stroke-dasharray="6 8"/>
-            <rect x="122" y="118" width="76" height="60" rx="12" fill="url(#d2)" opacity=".92"/>
-            <path d="M138 118v-14a22 22 0 0 1 44 0v14" stroke="url(#d2)" stroke-width="6" stroke-linecap="round"/>
+            <rect class="breathe" x="122" y="118" width="76" height="60" rx="12" fill="url(#d2)" opacity=".92"/>
+            <path class="lift" d="M138 118v-14a22 22 0 0 1 44 0v14" stroke="url(#d2)" stroke-width="6" stroke-linecap="round"/>
             <circle cx="160" cy="144" r="7" fill="#0a0a0a"/>
             <path d="M160 151v10" stroke="#0a0a0a" stroke-width="4" stroke-linecap="round"/>
           </svg>
         </div>
         <div class="dcard-info">
-          <h3>隐私与加密会话</h3>
+          <div class="dcard-line">
+            <h3>隐私与加密会话</h3>
+            <span class="dcard-go" aria-hidden="true"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span>
+          </div>
           <p>会话可以加锁，附件与密钥只落在设备本地，退出即清理在途缓存。</p>
         </div>
-      </div>
-      <div class="dcard reveal">
+      </a>
+      <a class="dcard reveal" href="#det-memory" data-sheet="det-memory">
         <div class="dcard-art">
           <!-- 记忆与用量：记忆条目 + 用量柱状 -->
           <svg viewBox="0 0 320 260" fill="none" aria-hidden="true">
@@ -708,18 +883,21 @@
             <rect x="58" y="52" width="120" height="26" rx="13" stroke="rgba(255,255,255,.26)"/>
             <rect x="58" y="88" width="88" height="26" rx="13" stroke="rgba(255,255,255,.18)"/>
             <rect x="58" y="124" width="104" height="26" rx="13" stroke="rgba(255,255,255,.14)"/>
-            <rect x="186" y="150" width="22" height="40" rx="6" fill="url(#d3)"/>
-            <rect x="216" y="126" width="22" height="64" rx="6" fill="url(#d3)"/>
-            <rect x="246" y="96" width="22" height="94" rx="6" fill="url(#d3)"/>
+            <rect class="grow" x="186" y="150" width="22" height="40" rx="6" fill="url(#d3)"/>
+            <rect class="grow grow-2" x="216" y="126" width="22" height="64" rx="6" fill="url(#d3)"/>
+            <rect class="grow grow-3" x="246" y="96" width="22" height="94" rx="6" fill="url(#d3)"/>
             <path d="M186 196h82" stroke="rgba(255,255,255,.22)"/>
             <path d="M58 168h104M58 186h72" stroke="rgba(255,255,255,.16)" stroke-width="4" stroke-linecap="round"/>
           </svg>
         </div>
         <div class="dcard-info">
-          <h3>记忆与用量统计</h3>
+          <div class="dcard-line">
+            <h3>记忆与用量统计</h3>
+            <span class="dcard-go" aria-hidden="true"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span>
+          </div>
           <p>让模型记住你的偏好，也让你看清每一次调用的 token 用量。</p>
         </div>
-      </div>
+      </a>
     </div>
   </div>
 </section>
@@ -856,6 +1034,300 @@
     </div>
   </div>
 </footer>
+
+<!-- ============================================================
+     详情层：点「核心能力」「细节之处」卡片进入
+     内容全部取自应用帮助中心的已实现功能（帮助中心是功能清单的单源）
+     · hash 直达：带 #cap-access 等地址可直接打开对应详情，便于分享
+     · 关闭路径四条：右上角关闭键 / 点面板外 / Esc / 浏览器后退
+     · 无 JS 时由 :target 规则接管，anchor 点击照常打开
+     ============================================================ -->
+
+<article class="sheet" id="cap-access" role="dialog" aria-modal="true" aria-labelledby="cap-access-t">
+  <div class="sheet-panel">
+    <button class="sheet-close" type="button" data-close aria-label="关闭详情">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="sheet-body">
+      <p class="sheet-kicker">核心能力 · 01</p>
+      <h2 class="sheet-title" id="cap-access-t">自由接入</h2>
+      <p class="sheet-lead">一个客户端接住所有兼容 OpenAI 协议的模型服务。协议、地址、模型与密钥都由你填写，也可以一键套用现成模板。</p>
+      <div class="sheet-specs">
+        <div class="spec"><b>3</b><span>种接入协议</span></div>
+        <div class="spec"><b>14</b><span>家服务商预设</span></div>
+        <div class="spec"><b>多支</b><span>密钥轮换</span></div>
+      </div>
+      <div class="sheet-points">
+        <div class="point"><span class="point-n">01</span><div>
+          <h3>三种接入协议</h3>
+          <p>OpenAI 兼容、Anthropic 与 Gemini 原生协议。选 OpenAI 兼容后还能在 chat/completions 与 Responses 两种接口形态间切换，保存时自动检查协议与地址是否匹配。</p>
+        </div></div>
+        <div class="point"><span class="point-n">02</span><div>
+          <h3>十四家服务商预设</h3>
+          <p>内置 DeepSeek、月之暗面 Kimi、智谱 GLM、硅基流动、OpenAI、Anthropic、Gemini、火山方舟、阿里云百炼、OpenRouter、MiniMax 等预设，点选即填好名称、地址与协议。</p>
+        </div></div>
+        <div class="point"><span class="point-n">03</span><div>
+          <h3>多密钥池</h3>
+          <p>一个服务商可存多支 API Key，发送时按顺序轮换。某支密钥失效会自动切到下一支，对话不中断。</p>
+        </div></div>
+        <div class="point"><span class="point-n">04</span><div>
+          <h3>余额与提示缓存</h3>
+          <p>内置 DeepSeek、Kimi 与硅基流动的余额查询模板，余额直接显示在服务商卡片上。Anthropic 协议可开启提示缓存，多轮对话里重复的内容按更低的缓存价计费。</p>
+        </div></div>
+        <div class="point"><span class="point-n">05</span><div>
+          <h3>自定义请求</h3>
+          <p>请求头与 Body 可逐条追加或覆盖内置字段，适配中转站等有额外要求的网关。名称或值为空的半填行在保存时自动丢弃。</p>
+        </div></div>
+        <div class="point"><span class="point-n">06</span><div>
+          <h3>配置迁移</h3>
+          <p>单家服务商或全部启用项都能导出成文件，换设备导入即用。导出可选不含密钥，也可以设置口令加密后连密钥一起带走。</p>
+        </div></div>
+      </div>
+      <div class="sheet-foot">
+        <p class="sheet-note">密钥经系统安全区加密保存，界面只显示掩码。导出的备份文件不含密钥明文。</p>
+        <a class="btn solid" href="#download" data-close>参与邀请测试<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+        <button class="btn" type="button" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</article>
+
+<article class="sheet" id="cap-local" role="dialog" aria-modal="true" aria-labelledby="cap-local-t">
+  <div class="sheet-panel">
+    <button class="sheet-close" type="button" data-close aria-label="关闭详情">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="sheet-body">
+      <p class="sheet-kicker">核心能力 · 02</p>
+      <h2 class="sheet-title" id="cap-local-t">数据留在设备</h2>
+      <p class="sheet-lead">应用不运营服务器，没有账号体系，也没有统计埋点。会话、配置与附件都保存在你的设备上。</p>
+      <div class="sheet-specs">
+        <div class="spec"><b>0</b><span>账号与埋点</span></div>
+        <div class="spec"><b>6</b><span>类存储明细</span></div>
+        <div class="spec"><b>1</b><span>键备份打包</span></div>
+      </div>
+      <div class="sheet-points">
+        <div class="point"><span class="point-n">01</span><div>
+          <h3>本地加密数据库</h3>
+          <p>会话、消息、助手、提示词与记忆保存在设备本地的加密数据库，服务商密钥交给系统安全存储保管。</p>
+        </div></div>
+        <div class="point"><span class="point-n">02</span><div>
+          <h3>隐私会话</h3>
+          <p>消息只留在内存里，不写进手机存储，也不进入会话历史。离开页面即销毁，适合临时提问与不想留痕的内容。</p>
+        </div></div>
+        <div class="point"><span class="point-n">03</span><div>
+          <h3>全量备份</h3>
+          <p>一键导出 zip，包内是会话、消息、服务商配置、助手、提示词与记忆，可自行保存或传到其他设备。</p>
+        </div></div>
+        <div class="point"><span class="point-n">04</span><div>
+          <h3>从备份恢复</h3>
+          <p>导入时可选跳过已存在记录，或覆盖同 id 记录，用来恢复误改的数据。用较旧的备份覆盖时，备份里没有的设置项会回到默认值。</p>
+        </div></div>
+        <div class="point"><span class="point-n">05</span><div>
+          <h3>WebDAV 同步</h3>
+          <p>填自己的网盘地址与账号，上传备份或恢复到本机。网盘保留最近 5 天、每天一份，恢复时优先取最近一份。</p>
+        </div></div>
+        <div class="point"><span class="point-n">06</span><div>
+          <h3>存储管理</h3>
+          <p>按应用本体、对话附件、数据库、壁纸、缓存与其他六类列出占用。可安全清理的临时内容一键释放，不动会话与已发送的附件。</p>
+        </div></div>
+      </div>
+      <div class="sheet-foot">
+        <p class="sheet-note">备份不含 API Key 明文，密钥不会随备份离开设备。恢复前请确认备份文件来自可信来源。</p>
+        <a class="btn solid" href="#download" data-close>参与邀请测试<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+        <button class="btn" type="button" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</article>
+
+<article class="sheet" id="cap-prompt" role="dialog" aria-modal="true" aria-labelledby="cap-prompt-t">
+  <div class="sheet-panel">
+    <button class="sheet-close" type="button" data-close aria-label="关闭详情">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="sheet-body">
+      <p class="sheet-kicker">核心能力 · 03</p>
+      <h2 class="sheet-title" id="cap-prompt-t">一人一套提示词</h2>
+      <p class="sheet-lead">助手的本质是一组配置的组合，模型、提示词、工具、记忆与采样参数都在其中。为不同用途各建一个，切换即换人设。</p>
+      <div class="sheet-specs">
+        <div class="spec"><b>12</b><span>个内置工具</span></div>
+        <div class="spec"><b>3</b><span>级提示词来源</span></div>
+        <div class="spec"><b>200</b><span>条记忆上限</span></div>
+      </div>
+      <div class="sheet-points">
+        <div class="point"><span class="point-n">01</span><div>
+          <h3>助手即配置组合</h3>
+          <p>每名助手绑定专属模型与思考强度，采样参数、上下文消息数与最大输出长度都能单独设定。</p>
+        </div></div>
+        <div class="point"><span class="point-n">02</span><div>
+          <h3>三级提示词</h3>
+          <p>系统提示词、会话提示词库与助手提示词各司其职。会话未单独启用提示词时注入助手的，启用后按会话的来。</p>
+        </div></div>
+        <div class="point"><span class="point-n">03</span><div>
+          <h3>十二个内置工具</h3>
+          <p>基础能力有获取时间、向用户提问、联网搜索、读取网页与帮助检索。设置与配置类工具让模型能改应用设置、管提示词、切功能模型、读用量统计。</p>
+        </div></div>
+        <div class="point"><span class="point-n">04</span><div>
+          <h3>工具轮数上限</h3>
+          <p>一次提问里模型最多执行多少轮工具调用由你决定，0 表示不限制，由内置的 256 轮硬顶兜底。</p>
+        </div></div>
+        <div class="point"><span class="point-n">05</span><div>
+          <h3>会话内换助手</h3>
+          <p>输入栏「+」面板里可以为当前会话单独绑定助手，只影响这一个会话，不改变全局当前助手。</p>
+        </div></div>
+        <div class="point"><span class="point-n">06</span><div>
+          <h3>控制台助手</h3>
+          <p>内置的问答助手会检索帮助中心来回答用法问题，也能按你的点名修改设置、查看用量。它不查看你的聊天记录与个人数据。</p>
+        </div></div>
+      </div>
+      <div class="sheet-foot">
+        <p class="sheet-note">设置与配置类工具仅控制台助手可用，其他助手不能开启。</p>
+        <a class="btn solid" href="#download" data-close>参与邀请测试<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+        <button class="btn" type="button" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</article>
+
+<article class="sheet" id="det-theme" role="dialog" aria-modal="true" aria-labelledby="det-theme-t">
+  <div class="sheet-panel">
+    <button class="sheet-close" type="button" data-close aria-label="关闭详情">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="sheet-body">
+      <p class="sheet-kicker">细节之处 · 01</p>
+      <h2 class="sheet-title" id="det-theme-t">深浅色与沉浸光感</h2>
+      <p class="sheet-lead">界面跟随系统深浅色切换，标题栏、弹窗与悬浮底栏的材质按鸿蒙的光感规范呈现，强度由你调。</p>
+      <div class="sheet-specs">
+        <div class="spec"><b>5</b><span>档光感档位</span></div>
+        <div class="spec"><b>3</b><span>条控制滑轨</span></div>
+        <div class="spec"><b>即改</b><span>即生效</span></div>
+      </div>
+      <div class="sheet-points">
+        <div class="point"><span class="point-n">01</span><div>
+          <h3>五档光感档位</h3>
+          <p>适应、无、弱、均衡与强。适应档按系统环境自动选择，无档关闭材质。</p>
+        </div></div>
+        <div class="point"><span class="point-n">02</span><div>
+          <h3>两条独立滑轨</h3>
+          <p>悬浮底栏与其他控件各自可选跟随基准档，也可以分别设定强度。</p>
+        </div></div>
+        <div class="point"><span class="point-n">03</span><div>
+          <h3>拖动即预览</h3>
+          <p>调整滑轨时实时看到效果，不用重启应用。</p>
+        </div></div>
+        <div class="point"><span class="point-n">04</span><div>
+          <h3>光感新规范开关</h3>
+          <p>开启后内容区组件使用华为新光感规范的官方外观，不随光感档位变化。关闭后恢复旧版光感效果。</p>
+        </div></div>
+        <div class="point"><span class="point-n">05</span><div>
+          <h3>背景壁纸</h3>
+          <p>选图后可裁剪、模糊、加遮罩，也可以让自定义背景只在会话页生效，其他页面用默认底色。</p>
+        </div></div>
+      </div>
+      <div class="sheet-foot">
+        <p class="sheet-note">背景只改变观感，不影响任何功能。</p>
+        <a class="btn solid" href="#download" data-close>参与邀请测试<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+        <button class="btn" type="button" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</article>
+
+<article class="sheet" id="det-privacy" role="dialog" aria-modal="true" aria-labelledby="det-privacy-t">
+  <div class="sheet-panel">
+    <button class="sheet-close" type="button" data-close aria-label="关闭详情">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="sheet-body">
+      <p class="sheet-kicker">细节之处 · 02</p>
+      <h2 class="sheet-title" id="det-privacy-t">隐私与加密会话</h2>
+      <p class="sheet-lead">该锁的锁上，该不留的不留。加密会话管进入时的验证，隐私会话管是否落盘保存。</p>
+      <div class="sheet-specs">
+        <div class="spec"><b>人脸</b><span>或指纹验证</span></div>
+        <div class="spec"><b>内存态</b><span>隐私会话</span></div>
+        <div class="spec"><b>掩码</b><span>密钥只显示部分</span></div>
+      </div>
+      <div class="sheet-points">
+        <div class="point"><span class="point-n">01</span><div>
+          <h3>生物识别进入</h3>
+          <p>加密会话在进入前由系统官方弹窗完成人脸或指纹验证，会话卡片上显示锁标。</p>
+        </div></div>
+        <div class="point"><span class="point-n">02</span><div>
+          <h3>未发消息不留痕</h3>
+          <p>新建的加密会话若没发消息就退出，不留下任何记录。发出消息后进入历史并上锁，之后每次进入都要验证。</p>
+        </div></div>
+        <div class="point"><span class="point-n">03</span><div>
+          <h3>隐私会话</h3>
+          <p>消息与附件只存在内存里，不写入手机存储，也不进入会话历史。离开页面立即销毁，无法找回。</p>
+        </div></div>
+        <div class="point"><span class="point-n">04</span><div>
+          <h3>密钥掩码</h3>
+          <p>所有密钥经系统安全区加密保存，界面只显示掩码，不暴露明文。</p>
+        </div></div>
+        <div class="point"><span class="point-n">05</span><div>
+          <h3>备份不含密钥</h3>
+          <p>导出的备份包里没有 API Key 明文，含密钥的配置迁移文件可以设置口令加密后另行保管。</p>
+        </div></div>
+      </div>
+      <div class="sheet-foot">
+        <p class="sheet-note">验证方式在设置 → 偏好设置里选择人脸或指纹，需先在系统设置中录入面容或指纹。</p>
+        <a class="btn solid" href="#download" data-close>参与邀请测试<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+        <button class="btn" type="button" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</article>
+
+<article class="sheet" id="det-memory" role="dialog" aria-modal="true" aria-labelledby="det-memory-t">
+  <div class="sheet-panel">
+    <button class="sheet-close" type="button" data-close aria-label="关闭详情">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="sheet-body">
+      <p class="sheet-kicker">细节之处 · 03</p>
+      <h2 class="sheet-title" id="det-memory-t">记忆与用量统计</h2>
+      <p class="sheet-lead">让模型记住你的稳定偏好，也让你看清每一次调用的花费。</p>
+      <div class="sheet-specs">
+        <div class="spec"><b>30</b><span>条记忆注入</span></div>
+        <div class="spec"><b>200</b><span>条库内上限</span></div>
+        <div class="spec"><b>5</b><span>张统计卡</span></div>
+      </div>
+      <div class="sheet-points">
+        <div class="point"><span class="point-n">01</span><div>
+          <h3>记忆总开关</h3>
+          <p>关闭后发送不注入、退出不沉淀。每名助手也能在编辑页单独关闭注入或沉淀。</p>
+        </div></div>
+        <div class="point"><span class="point-n">02</span><div>
+          <h3>自动整理</h3>
+          <p>退出会话后自动把对话整理成最多 5 条记忆。整理提示词可以自定义，须保留 {content} 占位符。</p>
+        </div></div>
+        <div class="point"><span class="point-n">03</span><div>
+          <h3>注入有度</h3>
+          <p>发送时以系统提示词形式注入最近 30 条，库内上限 200 条、单条上限 500 字。</p>
+        </div></div>
+        <div class="point"><span class="point-n">04</span><div>
+          <h3>敏感内容过滤</h3>
+          <p>自动整理会过滤口令、密钥与证件号等敏感内容，手动添加时也建议不要存入敏感信息。</p>
+        </div></div>
+        <div class="point"><span class="point-n">05</span><div>
+          <h3>五张统计卡</h3>
+          <p>用量热力图、总览、Token 用量、模型排行与用量趋势，按近七天、近三十天或全部切换，图表可在柱状与折线间切换。</p>
+        </div></div>
+        <div class="point"><span class="point-n">06</span><div>
+          <h3>每条回复可见</h3>
+          <p>每条 AI 回复下方标出该条的输入输出 token、生成速度与耗时，完整记录包含工具调用的每一轮。</p>
+        </div></div>
+      </div>
+      <div class="sheet-foot">
+        <p class="sheet-note">历史对话不参与统计。删除会话会连同它的用量记录一起删除。</p>
+        <a class="btn solid" href="#download" data-close>参与邀请测试<span class="arrow"><svg viewBox="0 0 17 11" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.282 5.894a.75.75 0 0 0-.002-1.059L11.665.22a.75.75 0 0 0-1.06 1.06l3.334 3.336H.75a.75.75 0 0 0 0 1.5h13.198l-3.346 3.37a.75.75 0 1 0 1.065 1.057l4.615-4.649Z" fill="currentColor"/></svg></span></a>
+        <button class="btn" type="button" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</article>
 
 <!-- 光标透镜的 SVG 滤镜定义：径向位移图内联为 data URI（页面仍零外部请求）。
      位移图 = 96×96 PNG，R/G 通道编码 x/y 位移（128 = 无位移基准；圆心放大 1.7 倍、圆边归零）。
@@ -1009,6 +1481,100 @@ document.documentElement.classList.add('js');
       if (document.hidden) stop(); else start();
     });
     start();
+  })();
+  /* ---------- 能力卡柔光跟随指针（rAF 合帧，只写自定义属性，不触发布局） ---------- */
+  (function cardGlow() {
+    if (reduce.matches) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    Array.prototype.forEach.call(document.querySelectorAll('.card'), function (card) {
+      var pending = false, mx = 0, my = 0;
+      card.addEventListener('mousemove', function (e) {
+        var r = card.getBoundingClientRect();
+        mx = e.clientX - r.left; my = e.clientY - r.top;
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(function () {
+          pending = false;
+          card.style.setProperty('--mx', mx + 'px');
+          card.style.setProperty('--my', my + 'px');
+        });
+      }, { passive: true });
+    });
+  })();
+
+  /* ---------- 详情层：点卡片进入，四条关闭路径，hash 可直达 ---------- */
+  (function sheets() {
+    var IDS = ['cap-access', 'cap-local', 'cap-prompt', 'det-theme', 'det-privacy', 'det-memory'];
+    var openEl = null, lastFocus = null;
+
+    function byId(id) {
+      for (var i = 0; i < IDS.length; i++) { if (IDS[i] === id) return document.getElementById(id); }
+      return null;
+    }
+    function open(id, push) {
+      var el = byId(id);
+      if (!el || openEl) return;
+      openEl = el; lastFocus = document.activeElement;
+      el.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      if (push && location.hash.slice(1) !== id) history.pushState(null, '', '#' + id);
+      var panel = el.querySelector('.sheet-panel');
+      if (panel) { panel.setAttribute('tabindex', '-1'); panel.focus({ preventScroll: true }); }
+    }
+    function close() {
+      if (!openEl) return;
+      var el = openEl;
+      openEl = null;
+      el.classList.remove('open');
+      el.querySelector('.sheet-panel').removeAttribute('tabindex');
+      document.body.style.overflow = '';
+      // hash 仍指向本面板时归位地址栏（后退键已离开的情形由 popstate 处理，不重复改写）
+      if (location.hash.slice(1) === el.id) history.replaceState(null, '', location.pathname + location.search);
+      if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
+      lastFocus = null;
+    }
+    function focusables(el) {
+      return Array.prototype.filter.call(
+        el.querySelectorAll('a[href], button:not([disabled])'),
+        function (n) { return n.offsetParent !== null; }
+      );
+    }
+
+    document.addEventListener('click', function (e) {
+      var trigger = e.target.closest('[data-sheet]');
+      if (trigger) { e.preventDefault(); open(trigger.getAttribute('data-sheet'), true); return; }
+      var closer = e.target.closest('[data-close]');
+      if (closer) {
+        // 面板内的锚点键（如「参与邀请测试」）：先关面板，再让浏览器走它自己的 href
+        var isAnchorJump = closer.tagName === 'A' && (closer.getAttribute('href') || '').charAt(0) === '#';
+        if (!isAnchorJump) e.preventDefault();
+        close();
+        return;
+      }
+      if (e.target.classList && e.target.classList.contains('sheet')) close();  // 点面板外的遮罩
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (!openEl) return;
+      if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); close(); return; }
+      if (e.key !== 'Tab') return;
+      var list = focusables(openEl);
+      if (!list.length) return;
+      var first = list[0], last = list[list.length - 1], active = document.activeElement;
+      if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    });
+
+    // 浏览器后退离开详情；前进则重新打开
+    window.addEventListener('popstate', function () {
+      var id = location.hash.slice(1);
+      if (openEl && id !== openEl.id) close();
+      else if (!openEl && byId(id)) open(id, false);
+    });
+
+    // 带 hash 直达（分享链接）：排到入场判定之后，避免面板挡住首屏时元素仍被判为可见
+    var direct = location.hash.slice(1);
+    if (byId(direct)) setTimeout(function () { open(direct, false); }, 0);
   })();
 })();
 </script>
