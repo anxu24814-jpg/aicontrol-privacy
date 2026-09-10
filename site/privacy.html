@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 控制台 · 隐私政策</title>
+<meta name="description" content="AI 控制台隐私政策：本应用为本地 AI 对话客户端，不收集、不上传任何用户数据。">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<style>
+  /* 视觉基线同 index.html（2026-09-09 高保真复刻 moonshot.cn：黑底白字 + 毛玻璃导航 + 卡片圆角 16）。
+     ★ 正文 12 节逐字与应用内 PrivacyPolicyPage.ets 及 docs/上架素材/隐私政策.html 同文，改版式不得动文字。 */
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; }
+  body {
+    background: #000;
+    color: #fff;
+    font-family: "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: .00938em;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; max-width: 100%; }
+  a { color: inherit; }
+  ::-webkit-scrollbar { width: 4px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: #45454e; border-radius: 2px; }
+  :root { --pad: 80px; --nav-h: 72px; --wrap: 1440px; --line: rgba(255,255,255,.12); }
+
+  /* ---------- 导航（与首页同款毛玻璃吸顶） ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(0,0,0,.4);
+    backdrop-filter: blur(16.75px);
+    -webkit-backdrop-filter: blur(16.75px);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .nav { background: rgba(0,0,0,.86); }
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: var(--nav-h); max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad);
+    position: relative;
+  }
+  .brand { flex-shrink: 0; display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand img { width: 32px; height: 32px; border-radius: 9px; }
+  .brand span { font-size: 19px; font-weight: 600; letter-spacing: .2px; }
+  .menu { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 24px; }
+  .menu a {
+    padding: 4px 8px; border-radius: 8px; font-size: 16px; line-height: 24px;
+    font-weight: 380; color: rgba(255,255,255,.56); text-decoration: none;
+    white-space: nowrap; transition: color .2s;
+  }
+  .menu a:hover { color: rgba(255,255,255,.84); }
+  .menu a.on { color: rgba(255,255,255,.84); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 9px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.42);
+    background: transparent; color: rgba(255,255,255,.56); font-size: 15px; font-weight: 450;
+    line-height: 24px; text-decoration: none; white-space: nowrap;
+    transition: border-color .2s, background .2s, color .2s;
+  }
+  .btn:hover { border-color: #fff; background: rgba(255,255,255,.05); color: #fff; }
+  .burger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; background: none; cursor: pointer; }
+  .burger svg { width: 24px; height: 24px; stroke: #fff; stroke-width: 2; }
+  .drawer {
+    display: none; flex-direction: column; position: absolute; top: var(--nav-h); left: 0; right: 0; z-index: 1;
+    height: calc(100vh - var(--nav-h)); height: calc(100dvh - var(--nav-h));
+    overflow-y: auto; padding: 8px 48px 24px; background: #121212;
+  }
+  .drawer.open { display: flex; }
+  .drawer a {
+    display: block; padding: 12px 0; font-size: 16px; line-height: 24px;
+    color: rgba(255,255,255,.6); text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .drawer a:hover { color: #fff; }
+
+  /* ---------- 正文 ---------- */
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 72px 0 40px; text-align: center; }
+  header img { width: 64px; height: 64px; border-radius: 17px; margin: 0 auto; }
+  h1 { font-size: 30px; font-weight: 500; line-height: 40px; margin: 20px 0 10px; }
+  .date { font-size: 14px; color: rgba(255,255,255,.42); }
+
+  .card {
+    background: #121212; border: 1px solid var(--line); border-radius: 16px;
+    padding: 40px 36px 44px;
+  }
+  h2 { font-size: 18px; font-weight: 500; line-height: 26px; margin: 34px 0 10px; }
+  h2:first-of-type { margin-top: 0; }
+  p { font-size: 15.5px; line-height: 1.85; color: #a3a3a3; margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  a.mail { color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.3); }
+  a.mail:hover { border-bottom-color: #fff; }
+
+  .foot { text-align: center; padding: 36px 0 72px; font-size: 14px; color: rgba(255,255,255,.42); }
+  .foot a { text-decoration: none; }
+  .foot a:hover { color: #fff; }
+
+  @media (max-width: 999px) {
+    :root { --pad: 48px; }
+    .menu { display: none; }
+    .burger { display: flex; }
+  }
+  @media (max-width: 679px) {
+    :root { --pad: 24px; }
+    header { padding: 48px 0 28px; }
+    h1 { font-size: 24px; }
+    .card { padding: 28px 20px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="top">
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <img src="app-icon.png" alt="" width="32" height="32">
+      <span>AI 控制台</span>
+    </a>
+    <div class="menu">
+      <a href="index.html#features">功能</a>
+      <a href="index.html#showcase">场景</a>
+      <a href="index.html#faq">常见问题</a>
+      <a href="privacy.html" class="on" aria-current="page">隐私政策</a>
+    </div>
+    <a class="btn" href="index.html#download">参与邀测</a>
+    <button class="burger" id="burger" aria-label="打开菜单" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="drawer" id="drawer">
+      <a href="index.html#features">功能</a>
+      <a href="index.html#showcase">场景</a>
+      <a href="index.html#faq">常见问题</a>
+      <a href="index.html#download">参与邀测</a>
+      <a href="privacy.html">隐私政策</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header>
+    <img src="app-icon.png" alt="AI 控制台应用图标">
+    <h1>AI 控制台 · 隐私政策</h1>
+    <div class="date">更新日期：2026-09-07</div>
+  </header>
+
+  <div class="card">
+    <h2>一、引言</h2>
+    <p>本隐私政策适用于「AI 控制台」（以下简称"本应用"）。本应用是一款本地 AI 对话客户端：您自行配置 AI 服务的接入地址与访问密钥，本应用仅作为客户端协助您与该服务交互，不提供任何 AI 计算服务，也未运营任何服务器。使用本应用即表示您同意本政策的约定；如您不同意，请停止使用。</p>
+
+    <h2>二、我们收集的信息</h2>
+    <p>本应用无账号体系，不需要注册与实名信息。本应用的开发者不收集、不上传、不存储您的任何个人信息、聊天内容、附件或访问密钥——这些数据全部只存在于您的设备本地（详见下文）。本应用不含统计埋点、广告组件或第三方追踪组件。</p>
+
+    <h2>三、数据的本地存储</h2>
+    <p>您的会话与消息记录、助手与提示词等配置、AI 服务设置及应用偏好等数据，以加密数据库的形式保存在您的设备内；API 访问密钥使用系统安全加密存储保管，不会明文写入数据库或普通文件；您设置的背景图片、选择的附件等文件亦仅保存在设备本地。以上数据不会离开您的设备，除非您主动使用下文所述功能。</p>
+
+    <h2>四、数据对外传输</h2>
+    <p>仅当您在应用内发起 AI 对话时，本次会话的上下文消息会发送至您自行配置的第三方 AI 服务地址，以获取回复；如果您附加了图片或文件且所配置的模型支持多模态输入，附件将一并发送给该服务。该服务的数据处理受其提供者的规则约束，与本应用无关——请在配置前了解并信任您选择的服务商。除此之外，本应用不会向任何第三方传输您的数据；您配置的访问密钥仅作为所属请求的认证信息自动附带在上述发送行为中，不以其他形式流出。若您使用应用内反馈功能主动提交反馈，您填写的反馈内容与自动附带的环境信息（应用版本、系统版本、设备型号）会经第三方推送服务 api.chuckfang.com 转达给开发者，仅用于处理反馈；不提交反馈则不发生该项传输。</p>
+
+    <h2>五、权限使用</h2>
+    <p>本应用声明「网络访问」权限用于连接您配置的 AI 服务及获取模型列表。选择图片、文件与拍照均通过系统官方选择器完成，不需要存储或相机权限。</p>
+
+    <h2>六、AI 生成内容</h2>
+    <p>聊天回复由第三方 AI 模型生成，可能存在不准确或不符合预期的内容，仅供参考，请勿将其作为医疗、法律、投资等专业决策的唯一依据。</p>
+
+    <h2>七、运行日志</h2>
+    <p>应用维护的本地运行日志仅用于故障排查，保存在设备本地并设有容量上限，不会自动上传。</p>
+
+    <h2>八、数据删除</h2>
+    <p>您可以删除单个会话或全部会话记录；卸载应用将删除本应用本地的全部数据（如需保留系统备份，见下节）。</p>
+
+    <h2>九、系统备份</h2>
+    <p>本应用支持系统的应用数据备份能力（如华为云备份）：若您在系统设置中开启了相关功能，应用数据可能由系统统一备份与恢复，方便您换机或系统迁移；该备份由系统管理，您可随时在系统设置中关闭。</p>
+
+    <h2>十、未成年人保护</h2>
+    <p>若您未满 14 周岁，请在监护人陪同并同意本政策后使用本应用。</p>
+
+    <h2>十一、政策更新</h2>
+    <p>本政策可能因功能或法规要求调整而更新，更新后会在本应用内公布并标注新日期；重大变更将以显著方式提示。</p>
+
+    <h2>十二、联系我们</h2>
+    <p>如您对本政策或本应用的数据处理有任何疑问，请通过邮箱 <a class="mail" href="mailto:335164137@qq.com">335164137@qq.com</a> 与我们联系。</p>
+  </div>
+
+  <div class="foot">
+    <a href="index.html">返回首页</a>
+  </div>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('burger');
+  var panel = document.getElementById('drawer');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', function () {
+    var open = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? '关闭菜单' : '打开菜单');
+  });
+})();
+</script>
+
+</body>
+</html>
